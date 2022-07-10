@@ -1,0 +1,187 @@
+package CatalystX::RequestModel::DoesRequestModel;
+
+use Moo::Role;
+use Scalar::Util;
+
+has ctx => (is=>'ro');
+has current_namespace => (is=>'ro', predicate=>'has_current_namespace');
+has current_parser => (is=>'ro', predicate=>'has_current_parser');
+has catalyst_component_name => (is=>'ro');
+
+sub namespace {
+  my ($class_or_self, @data) = @_;
+  my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
+  if(@data) {
+    @data = map { split /\./, $_ } @data;
+    CatalystX::RequestModel::_add_metadata($class, 'namespace', @data);
+  }
+
+  return $class_or_self->namespace_metadata if $class_or_self->can('namespace_metadata');
+}
+
+sub content_type {
+  my ($class_or_self, $ct) = @_;
+  my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
+  CatalystX::RequestModel::_add_metadata($class, 'content_type', $ct) if $ct;
+
+  if($class_or_self->can('content_type_metadata')) {
+    my ($ct) = $class_or_self->content_type_metadata;  # needed because this returns an array but we only want the first one
+    return $ct;
+  }
+}
+
+sub property {
+  my ($class_or_self, $attr, $data_proto, $options) = @_;
+  my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
+  if(defined $data_proto) {
+    my $data = (ref($data_proto)||'') eq 'HASH' ? $data_proto : +{ name => $attr };
+    $data->{name} = $attr unless exists($data->{name});
+    CatalystX::RequestModel::_add_metadata($class, 'property_data', +{$attr => $data});
+  }
+}
+
+sub properties {
+  my ($class_or_self, @data) = @_;
+  my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
+  while(@data) {
+    my $attr = shift(@data);
+    my $data = (ref($data[0])||'') eq 'HASH' ? shift(@data) : +{ name => $attr };
+    $data->{name} = $attr unless exists($data->{name});
+    CatalystX::RequestModel::_add_metadata($class, 'property_data', +{$attr => $data});
+  }
+
+  return $class_or_self->property_data_metadata if $class_or_self->can('property_data_metadata');
+}
+
+sub COMPONENT {
+  my ($class, $app, $args) = @_;
+  $args = $class->merge_config_hashes($class->config, $args);
+  return bless $args, $class;
+}
+
+sub ACCEPT_CONTEXT {
+  my $self = shift;
+  my $c = shift;
+
+  my %args = (%$self, @_);  
+  my %request_args = $self->parse_content_body($c, %args);
+  my %init_args = (%args, %request_args, ctx=>$c);
+  my $class = ref($self);
+
+  return my $request_model = $self->build_request_model($c, $class, %init_args);
+}
+
+sub build_request_model {
+  my ($self, $c, $class, %init_args) = @_;
+  return $class->new(%init_args); ## TODO catch and wrap error
+}
+
+sub parse_content_body {
+  my ($self, $c, %args) = @_;
+
+  my @rules = $self->properties;
+  my @ns = exists($args{current_namespace}) ? @{$args{current_namespace}} : $self->namespace;            
+  my $parser_class = $self->get_content_body_parser_class($c->req->content_type);
+  my $parser = exists($args{current_parser}) ? 
+    $args{current_parser} :
+      $parser_class->new(ctx=>$c);
+
+  return my %request_args = $parser->parse(\@ns, \@rules);
+}
+
+sub get_content_body_parser_class {
+  my ($self, $content_type) = @_;
+  return my $parser_class = CatalystX::RequestModel::content_body_parser_for($content_type);
+}
+
+sub get_attribute_value_for {
+  my ($self, $attr) = @_;
+  return $self->$attr;
+}
+
+sub nested_params {
+  my $self = shift;
+  my %return;
+  foreach my $p ($self->properties) {
+    my ($attr, $meta) = %$p;
+    if(my $predicate = $meta->{attr_predicate}) {
+      if($meta->{omit_empty}) {
+        next unless $self->$predicate;  # skip empties when omit_empty=>1
+      }
+    }
+
+    my $value = $self->get_attribute_value_for($attr);
+    if( (ref($value)||'') eq 'ARRAY') {
+      my @gathered = ();
+      foreach my $v (@$value) {
+        if(Scalar::Util::blessed($v)) {
+          my $params = $v->nested_params;
+          push @gathered, $params if keys(%$params);
+        } else {
+          push @gathered, $v;
+        }
+
+      }
+      $return{$attr} = \@gathered;
+    } elsif(Scalar::Util::blessed($value) && $value->can('nested_params')) { 
+      my $params = $value->nested_params;
+      next unless keys(%$params);
+      $return{$attr} = $params;
+    } else {
+      $return{$attr} = $value;
+    }
+  }
+  return \%return;
+} 
+
+sub get {
+  my ($self, @fields) = @_;
+  my $p = $self->nested_params;
+  my @got = @$p{@fields};
+  return @got;
+}
+
+1;
+
+=head1 NAME
+
+CatalystX::RequestModel::DoesRequestModel - Role to provide request model API
+
+=head1 SYNOPSIS
+
+    TBD
+
+=head1 DESCRIPTION
+
+    TBD
+
+=head1 METHODS
+
+This class defines the following public API
+
+=head2
+
+=head1 EXCEPTIONS
+
+This class can throw the following exceptions:
+
+=head2 Invalid Request Content Type
+
+If the incoming content body doesn't have a content type header that matches one of the available
+content body parsers then we throw an L<CatalystX::RequestModel::Utils::InvalidContentType>.  This
+will get interpretated as an HTTP 415 status client error if you are using L<CatalystX::Errors>.
+
+=head1 AUTHOR
+
+See L<CatalystX::RequestModel>.
+ 
+=head1 COPYRIGHT
+ 
+See L<CatalystX::RequestModel>.
+
+=head1 LICENSE
+ 
+See L<CatalystX::RequestModel>.
+ 
+=cut
+
