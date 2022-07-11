@@ -5,6 +5,11 @@ use strict;
 use Module::Runtime ();
 use CatalystX::RequestModel::Utils::InvalidJSONForValue;
 
+my $_JSON_PARSER;
+my $_build_json_parser = sub {
+  return $_JSON_PARSER ||= Module::Runtime::use_module('JSON::MaybeXS')->new(utf8 => 1);
+};
+
 sub content_type { die "Must be overridden" }
 
 sub parse { die "Must be overridden"}
@@ -13,21 +18,26 @@ sub normalize_value {
   my ($self, $param, $value, $key_rules) = @_;
 
   if($key_rules->{always_array}) {
-    $value = [$value] unless (ref($value)||'') eq 'ARRAY';
+    $value = $self->normalize_always_array($value);
   } elsif($key_rules->{flatten}) {
-    $value = $value->[-1] if (ref($value)||'') eq 'ARRAY';
+    $value = $self->normalize_flatten($value);
   }
 
-  if( ($key_rules->{expand}||'') eq 'JSON' ) {
-    eval {
-      $value = $self->parse_json($value);
-    } || do {
-      CatalystX::RequestModel::Utils::InvalidJSONForValue->throw(param=>$param, parsing_error=>$@);
-    };
-  }
-
+  $value = $self->normalize_json($value, $param) if (($key_rules->{expand}||'') eq 'JSON');
   $value = $self->normalize_boolean($value) if ($key_rules->{boolean}||'');
 
+  return $value;
+}
+
+sub normalize_always_array {
+  my ($self, $value) = @_;
+  $value = [$value] unless (ref($value)||'') eq 'ARRAY';
+  return $value;
+}
+
+sub normalize_flatten{
+  my ($self, $value) = @_;
+    $value = $value->[-1] if (ref($value)||'') eq 'ARRAY';
   return $value;
 }
 
@@ -36,16 +46,16 @@ sub normalize_boolean {
   return $value ? 1:0
 }
 
-my $_JSON_PARSER;
+sub normalize_json {
+  my ($self, $value, $param) = @_;
 
-sub _build_json_parser {
-  return my $parser = Module::Runtime::use_module('JSON::MaybeXS')->new(utf8 => 1);
-}
+  eval {
+    $value = $self->$_build_json_parser->decode($value);
+  } || do {
+    CatalystX::RequestModel::Utils::InvalidJSONForValue->throw(param=>$param, parsing_error=>$@);
+  };
 
-sub parse_json {
-  my ($self, $string) = @_;
-  $_JSON_PARSER ||= $self->_build_json_parser;
-  return $_JSON_PARSER->decode($string); # TODO need to catch errors
+  return $value;
 }
 
 1;
