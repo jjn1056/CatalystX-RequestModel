@@ -340,10 +340,10 @@ a nested structure you can indicate that via mapping an attribute to a sub Catal
     namespace 'person';
     content_type 'application/x-www-form-urlencoded';
 
-    has username => (is=>'ro', required=>1, property=>{always_array=>1});  
+    has username => (is=>'ro', required=>1, property=>{ always_array=>1 });  
     has first_name => (is=>'ro', property=>1);
     has last_name => (is=>'ro', property=>1);
-    has profile => (is=>'ro', property=>+{model=>'AccountRequest::Profile' });
+    has profile => (is=>'ro', property=>+{ model=>'AccountRequest::Profile' });
 
     __PACKAGE__->meta->make_immutable();
 
@@ -392,6 +392,16 @@ It would parse and inflate a request model like
     $request_model->profile->city;    # Elgin
 
 ...and so on.
+
+If your nested models are directly under the main request model's namespace (as in the
+above example) you can shorten the value of the C<model> option to include only the
+affix.   For example the following:
+
+    has profile => (is=>'ro', property=>+{ model=>'AccountRequest::Profile' });
+
+Could be shortened to:
+
+    has profile => (is=>'ro', property=>+{ model=>'::Profile' });
 
 In the case when your deep structure also is an array/list you can mark that so via the
 C<indexed> option of the property field as in the following example:

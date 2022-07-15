@@ -53,8 +53,67 @@ use Catalyst::Test 'Example';
   ok my $res = request POST '/account/one', $body_parameters;
   ok my $data = eval $res->content;  
 
-  use Devel::Dwarn;
-  Dwarn $data;
+  is_deeply $data, +{
+    credit_cards => [
+      {
+        _delete => 0,
+        card_number => "123123123123123",
+        expiration => "3000-01-01",
+        id => 1,
+      },
+      {
+        _delete => 0,
+        card_number => "4444445555556666",
+        expiration => "4000-01-01",
+        id => 2,
+      },
+      {
+        card_number => "88888889999999",
+        expiration => "5000-01-01",
+        id => 3,
+      },
+    ],
+    empty => undef,
+    empty_array => [],
+    first_name => "John",
+    indexed => [
+      100,
+      200,
+      300,
+    ],
+    last_name => "Napiorkowski",
+    maybe_array => "one",
+    maybe_array2 => [
+      "one",
+      "two",
+    ],
+    notes => {
+      foo => "bar",
+      test => "one",
+    },
+    person_roles => [
+      {
+        role_id => 1,
+      },
+      {
+        role_id => 2,
+      },
+    ],
+    profile => {
+      address => "15604 Harry Lind Road",
+      birthday => "2000-01-01",
+      city => "Elgin",
+      id => 1,
+      phone_number => "16467081837",
+      registered => 1,
+      state_id => 2,
+      status => "pending",
+      zip => 78621,
+    },
+    username => [
+      "jjn",
+    ],
+  };
 }
 
 {
@@ -75,8 +134,32 @@ use Catalyst::Test 'Example';
   ok my $res = request POST '/account/one', $body_parameters;
   ok my $data = eval $res->content;  
 
-  use Devel::Dwarn;
-  Dwarn $data;
+  is_deeply $data, +{
+    empty => undef,
+    empty_array => [],
+    first_name => "John",
+    last_name => "Napiorkowski",
+    maybe_array => "one",
+    maybe_array2 => [
+      "one",
+      "two",
+    ],
+    notes => {
+      foo => "bar",
+      test => "one",
+    },
+    person_roles => [
+      {
+        role_id => 1,
+      },
+      {
+        role_id => 2,
+      },
+    ],
+    username => [
+      "jjn",
+    ],
+  };
 }
 
 {

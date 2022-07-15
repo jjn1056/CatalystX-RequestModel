@@ -18,7 +18,7 @@ has indexed  => (is=>'ro', property=>+{ indexed=>1 });
 has empty_array  => (is=>'ro', default=>sub {[]}, property=>+{ omit_empty=>0 });
 has profile => (is=>'ro', property=>+{model=>'AccountRequest::Profile' });
 has person_roles => (is=>'ro', property=>+{ indexed=>1, model=>'AccountRequest::PersonRole' });
-has credit_cards => (is=>'ro', property=>+{ indexed=>1, model=>'AccountRequest::CreditCard' });
+has credit_cards => (is=>'ro', property=>+{ indexed=>1, model=>'::CreditCard' });
 
 __PACKAGE__->meta->make_immutable();
 

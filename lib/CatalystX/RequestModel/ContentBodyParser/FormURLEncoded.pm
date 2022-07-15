@@ -63,8 +63,8 @@ sub handle_form_encoded {
         $current->{$attr} = [];
       }
     } elsif(my $nested_model = $attr_rules->{model}) {
-      $current->{$attr} = $self->{ctx}->model(
-        $nested_model, 
+        $current->{$attr} = $self->{ctx}->model(
+        $self->normalize_nested_model_name($nested_model), 
         current_namespace=>[@$ns, (defined($index) ? "${param_name}[$index]": $param_name)], 
         current_parser=>$self
       );

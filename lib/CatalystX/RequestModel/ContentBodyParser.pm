@@ -4,6 +4,7 @@ use warnings;
 use strict;
 use Module::Runtime ();
 use CatalystX::RequestModel::Utils::InvalidJSONForValue;
+use Catalyst::Utils;
 
 my $_JSON_PARSER;
 my $_build_json_parser = sub {
@@ -44,6 +45,18 @@ sub normalize_flatten{
 sub normalize_boolean {
   my ($self, $value) = @_;
   return $value ? 1:0
+}
+
+sub normalize_nested_model_name {
+  my ($self, $nested_model) = @_;
+  if($nested_model =~ /^::/) {
+    my $model_class_base = ref($self->{request_model});
+    my $prefix = Catalyst::Utils::class2classprefix($model_class_base);
+    $model_class_base =~s/^${prefix}\:\://;
+    $nested_model = "${model_class_base}${nested_model}";
+  }
+
+  return $nested_model;
 }
 
 sub normalize_json {

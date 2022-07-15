@@ -91,7 +91,7 @@ sub parse_content_body {
   my $parser_class = $self->get_content_body_parser_class($c->req->content_type);
   my $parser = exists($args{current_parser}) ? 
     $args{current_parser} :
-      $parser_class->new(ctx=>$c);
+      $parser_class->new(ctx=>$c, request_model=>$self);
 
   return my %request_args = $parser->parse(\@ns, \@rules);
 }
