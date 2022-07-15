@@ -135,7 +135,6 @@ Or:
     +-------------------------------------+--------------------------------------+
     | person.first_name [multiple]        | 2, John                              |
     | person.last_name                    | Napiorkowski                         |
-    | person.notes                        | {"test":"one", "foo":"bar"}          |
     | person.person_roles[0]._nop         | 1                                    |
     | person.person_roles[1].role_id      | 1                                    |
     | person.person_roles[2].role_id      | 2                                    |
@@ -148,10 +147,6 @@ Into:
       first_name => "John",
       last_name => "Napiorkowski",
       username => "jjn",
-      notes => {
-        foo => "bar",
-        test => "one",
-      },
       person_roles => [
         {
           role_id => 1,
@@ -163,7 +158,7 @@ Into:
     }
 
 We define some settings described below to help you deal with some of the issues you find when trying
-to parse HTML form posted body content.
+to parse HTML form posted body content.  For now please see the test cases for more examples.
 
 =head1 VALUE PARSER CONFIGURATION
 

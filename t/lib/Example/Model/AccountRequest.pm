@@ -7,13 +7,14 @@ extends 'Catalyst::Model';
 namespace 'person';
 content_type 'application/x-www-form-urlencoded';
 
-has username => (is=>'ro', property=>{always_array=>1});  
+has username => (is=>'ro', required=>1, property=>{always_array=>1});  
 has first_name => (is=>'ro', property=>1);
 has last_name => (is=>'ro', property=>1);
 has notes => (is=>'ro', property=>+{ expand=>'JSON' });
 has maybe_array => (is=>'ro', property=>+{ flatten=>0 });
 has maybe_array2 => (is=>'ro', property=>+{ flatten=>0 });
 has empty  => (is=>'ro', property=>+{ omit_empty=>0 });
+has indexed  => (is=>'ro', property=>+{ indexed=>1 });
 has empty_array  => (is=>'ro', default=>sub {[]}, property=>+{ omit_empty=>0 });
 has profile => (is=>'ro', property=>+{model=>'AccountRequest::Profile' });
 has person_roles => (is=>'ro', property=>+{ indexed=>1, model=>'AccountRequest::PersonRole' });

@@ -70,7 +70,7 @@ Catalyst::ActionRole::RequestModel - Inflate a Request Model
 
 =head1 DESCRIPTION
 
-Moves creating the request model into the action class.  The following two actions are essentially
+Moves creating the request model into the action class execute phase.  The following two actions are essentially
 the same in effect:
 
     sub update :POST Chained('root') PathPart('') Args(0) Does(RequestModel) RequestModel(AccountRequest) {
@@ -92,7 +92,8 @@ attributes line and we will match the incoming request to the best request model
 if none match.  So if you have more than one this saves you writing that boilerplate code to chose and
 to handled the no match conditions.
 
-You might also just find the code neater and more clean reading.  It's up to you.
+You might also just find the code neater and more clean reading.  Downside is for people unfamiliar with
+this system it might increase learning curve time.
 
 =head1 METHOD ATTRIBUTES
 
@@ -100,10 +101,17 @@ This action role defines the following method attributes
 
 =head2 RequestModel
 
-Should be the name of a L<Catalyst::Model> subclass that does <CatalystX::RequestModel>.  You may 
+Should be the name of a L<Catalyst::Model> subclass that does <CatalystX::RequestModel::DoesRequestModel>.  You may 
 supply more than one value to handle different request content types (the code will match the incoming
 content type to an available request model and throw an L<CatalystX::RequestModel::Utils::InvalidContentType>
 exception if none of the available models match.
+
+Example of an action with more than one request model, which will be matched based on request content type.
+
+    sub update :POST Chained('root') PathPart('') Args(0) Does(RequestModel) RequestModel(AccountRequestForm) RequestModel(AccountRequestJSON) {
+      my ($self, $c, $request_model) = @_;
+      ## Do something with the $request_model
+    }
 
 =head1 AUTHOR
 

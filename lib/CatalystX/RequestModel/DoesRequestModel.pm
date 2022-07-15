@@ -2,6 +2,7 @@ package CatalystX::RequestModel::DoesRequestModel;
 
 use Moo::Role;
 use Scalar::Util;
+use CatalystX::RequestModel::Utils::BadRequest;
 
 has ctx => (is=>'ro');
 has current_namespace => (is=>'ro', predicate=>'has_current_namespace');
@@ -73,7 +74,13 @@ sub ACCEPT_CONTEXT {
 
 sub build_request_model {
   my ($self, $c, $class, %init_args) = @_;
-  return $class->new(%init_args); ## TODO catch and wrap error
+  my $request_model = eval {
+    $class->new(%init_args)
+  } || do {
+    return CatalystX::RequestModel::Utils::BadRequest->throw(class=>$class, error_trace=>$@);
+  };
+
+  return $request_model;
 }
 
 sub parse_content_body {
@@ -149,17 +156,49 @@ CatalystX::RequestModel::DoesRequestModel - Role to provide request model API
 
 =head1 SYNOPSIS
 
-    TBD
+Generally you will apply this role via L<CatalystX::RequestModel>
+
+    package Example::Model::AccountRequest;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    namespace 'person';
+    content_type 'application/x-www-form-urlencoded';
+
+    has username => (is=>'ro', property=>{always_array=>1});  
+    has first_name => (is=>'ro', property=>1);
+    has last_name => (is=>'ro', property=>1);
+    has notes => (is=>'ro', property=>+{ expand=>'JSON' });
+
+See L<CatalystX::RequestModel> for a more general overview.
 
 =head1 DESCRIPTION
 
-    TBD
+A role that gives a L<Catalyst::Model> the ability to indicate which of its attributes should be
+consider request model data, as well as additional need meta data so that we can process it
+properly.
 
 =head1 METHODS
 
 This class defines the following public API
 
-=head2
+=head2 nested_params
+
+Returns all the attributes marked as request properties in the form of a hashref.  If any of the
+properties refer to an array or indexed value, or an object, we automatically follow that to 
+return all the property data below.
+
+Attributes that are empty will be left out of the return data structure.
+
+Easiest way to get all your data but then again you get a structure that is very tightly tied to
+your request model.  
+
+=head2 get
+
+Accepts a list of attributes that refer to request properties and returns their values.  In the case
+when the attribute listed has no value, you will instead get an C<undef>.
 
 =head1 EXCEPTIONS
 

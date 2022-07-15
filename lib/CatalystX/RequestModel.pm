@@ -197,7 +197,7 @@ fields (via the C<property> attribute field) which you can read about below.
 
 B<NOTE> Work in progress code and I reserve ability to make breaking changes as needed to get this
 code where I want it to be.   That said this actually isn't super complex stuff and I will do my
-best to maintain compatibility at least with th public facing parts of this.
+best to maintain compatibility at least with the public facing parts of this.
 
 Dealing with incoming POSTed (or PUTed/ PATCHed, etc) content bodies is one of the most common
 code issues we have to deal with.  L<Catalyst> has generic capacities for handling common incoming
@@ -214,7 +214,7 @@ type of command class pattern subtype.  It promotes looser binding between your 
 applications models, and it makes for neater, smaller controllers as well as separating out the
 types of work we do into smaller, more comprehendible classes.   Lastly we encapsulate some of the
 more common types of issues into configuration (for example dealing with how HTML form POSTed
-parameters can cause you issues when there are sometimes in array form) as well as improve security
+parameters can cause you issues when they are sometimes in array form) as well as improve security
 by having an explict interface to the model.
 
 Also once we have a model that defines an expected request, we should be able to build upon the meta data
@@ -267,8 +267,8 @@ for now to define a request model for each one; I'm open to changing this to all
 per request model, but I need to see your use cases for this before I paint myself into a corner codewise.).
 
 C<property>: This is a new field allowed on your attribute declarations.  Setting its value to C<1> (as in 
-the example above) just means to use all the default settings but you can declare this as a hashref instead
-if you have special handling needs.  For example:
+the example above) just means to use all the default settings for the declared content_type but you can declare
+this as a hashref instead if you have special handling needs.  For example:
 
     has notes => (is=>'ro', property=>+{ expand=>'JSON' });
 
@@ -284,10 +284,10 @@ the name of the attribute.
 
 =item omit_empty
 
-Defaults to true.   If there's no matching field in the request body we leave the request model attribute
+Defaults to true. If there's no matching field in the request body we leave the request model attribute
 empty (we don't stick an undef in there).  If for some reason you don't want that, setting this to false
-will put an undef into a scalar fields, and an empty array into an indexed one.   If has not effect on
-attributes that map to a submodel since I have no idea what that should be (your usecases welcomed).
+will put an undef into a scalar fields, and an empty array into an indexed one.   If has no effect on
+attributes that map to a submodel since I have no idea what that should be (your use cases welcomed).
 
 =item flatten
 
@@ -311,13 +311,151 @@ allowed for now since I'm not sure there's a use case for both.
 
 Example the value into a data structure by parsing it.   Right now there's only one value this will take,
 which is C<JSON> and will then parse the value into a structure using a JSON parser.   Again this is mostly
-useful for HTML form posting and coping with some limitations you have in classic HTML form input types.fdac
+useful for HTML form posting and coping with some limitations you have in classic HTML form input types.
 
 =back
 
-=head2 Setting a required attributes
+=head2 Setting a required attribute
+
+Generally its best to not mark attributes which map to request properties as required and to handled anything
+like thia via your validation layer so that you can provide more useful feedback to your application users.
+If you do need to mark something required in order for your request model to be valid, please note that we
+capture the exception created by Moo/se and throw L<CatalystX::RequestModel::Utils::BadRequest>.  If you are
+using L<CatalystX::Errors> this will get rendered as a HTTP 400 Bad Request; otherwise you just get the 
+generic L<Catalyst> HTTP 500 Server Error or as you might have written in your custom error handling code.
 
 =head2 Nested and Indexed attributes
+
+Very often you will have incoming request data that is complex (or is trying to be, as in the case with
+HTML form post where you use a serialization format to flatten a deep structure into a flat list)  In that
+case your body parser will attempt to deserialize that into a deep structure.  In the case when you have
+a nested structure you can indicate that via mapping an attribute to a sub Catalyst model.  For example:
+
+    package Example::Model::AccountRequest;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    namespace 'person';
+    content_type 'application/x-www-form-urlencoded';
+
+    has username => (is=>'ro', required=>1, property=>{always_array=>1});  
+    has first_name => (is=>'ro', property=>1);
+    has last_name => (is=>'ro', property=>1);
+    has profile => (is=>'ro', property=>+{model=>'AccountRequest::Profile' });
+
+    __PACKAGE__->meta->make_immutable();
+
+    package Example::Model::AccountRequest::Profile;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+
+    has id => (is=>'ro', property=>1);
+    has address => (is=>'ro', property=>1);
+    has city => (is=>'ro', property=>1);
+    has state_id => (is=>'ro', property=>1);
+    has zip => (is=>'ro', property=>1);
+    has phone_number => (is=>'ro', property=>1);
+    has birthday => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+If you had incoming body parameters like this (using the Form Content Body Parser):
+
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | person.username                     | jjn                                  |
+    | person.first_name                   | John                                 |
+    | person.last_name                    | Napiorkowski                         |
+    | person.profile.id                   | 1                                    |
+    | person.profile.address              | 15604 Harry Lind Road                |
+    | person.profile.city                 | Elgin                                |
+    | person.profile.state_id             | 2                                    |
+    | person.profile.zip                  | 78621                                |
+    | person.profile.phone_number         | 16467081837                          |
+    | person.profile.birthday             | 2000-01-01                           |
+    '-------------------------------------+--------------------------------------'
+
+It would parse and inflate a request model like
+
+    my $request_model = $c->model('AccountRequest');
+
+    $request_model->username;         # jjn
+    $request_model->first_name;       # John
+    $request_model->last_name;        # Napiorkowski
+    $request_model->profile->address; # 15604 Harry Lind Road
+    $request_model->profile->city;    # Elgin
+
+...and so on.
+
+In the case when your deep structure also is an array/list you can mark that so via the
+C<indexed> option of the property field as in the following example:
+
+    package Example::Model::AccountRequest;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    namespace 'person';
+    content_type 'application/x-www-form-urlencoded';
+
+    has username => (is=>'ro', required=>1, property=>{always_array=>1});  
+    has first_name => (is=>'ro', property=>1);
+    has last_name => (is=>'ro', property=>1);
+    has credit_cards => (is=>'ro', property=>+{ indexed=>1, model=>'AccountRequest::CreditCard' });
+
+    __PACKAGE__->meta->make_immutable();
+
+    package Example::Model::AccountRequest::CreditCard;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+
+    has id => (is=>'ro', property=>1);
+    has card_number => (is=>'ro', property=>1);
+    has expiration => (is=>'ro', property=>1);
+
+Now if your incoming request looks like this it will be parsed into a deep structure by the
+correct body parser and mapped to the request object:
+
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | person.username                     | jjn                                  |
+    | person.first_name                   | John                                 |
+    | person.last_name                    | Napiorkowski                         |
+    | person.credit_cards[0].card_number  | 123123123123123                      |
+    | person.credit_cards[0].expiration   | 3000-01-01                           |
+    | person.credit_cards[0].id           | 1                                    |
+    | person.credit_cards[1].card_number  | 4444445555556666                     |
+    | person.credit_cards[1].expiration   | 4000-01-01                           |
+    | person.credit_cards[1].id           | 2                           
+    '-------------------------------------+--------------------------------------'
+
+It would parse and inflate a request model like
+
+    my $request_model = $c->model('AccountRequest');
+
+    $request_model->username;                       # jjn
+    $request_model->first_name;                     # John
+    $request_model->last_name;                      # Napiorkowski
+    $request_model->credit_cards->[0]->card_number; # 123123123123123
+    $request_model->credit_cards->[0]->expiration;  # 3000-01-01
+    $request_model->credit_cards->[1]->card_number; # 4444445555556666
+    $request_model->credit_cards->[1]->expiration;  # 4000-01-01
+
+Please note the difference between a request property that is marked as C<indexed> versus
+C<always_array>.  An C<indexed> property is required to have an array value while C<always_array>
+merely coerces a scalar to an array if the value isn't already an array.  You cannot use
+C<indexed> and C<always_array> in the same request property.
 
 =head2 Endpoints with more than one request model
 
@@ -357,6 +495,11 @@ Please see L<CatalystX::RequestModel::DoesRequestModel> for the public API detai
 =head1 EXCEPTIONS
 
 This class can throw the following exceptions:
+
+=head2 Bad Request
+
+If your request generates an exception when trying to instantiate your model (basically when calling ->new
+on it) we capture that error, log the error and throw a L<CatalystX::RequestModel::Utils::BadRequest>
 
 =head2 Invalid Request Content Type
 

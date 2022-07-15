@@ -19,6 +19,9 @@ use Catalyst::Test 'Example';
     'person.maybe_array' => 'one',
     'person.maybe_array2' => 'one',
     'person.maybe_array2' => 'two',
+    'person.indexed[0]' => 100,
+    'person.indexed[1]' => 200,
+    'person.indexed[]' => 300,
     'person.profile.address' => '15604 Harry Lind Road',
     'person.profile.birthday' => '2000-01-01',
     'person.profile.city' => 'Elgin',
@@ -74,6 +77,18 @@ use Catalyst::Test 'Example';
 
   use Devel::Dwarn;
   Dwarn $data;
+}
+
+{
+  ok my $body_parameters = [
+    'person.first_name' => 2,
+    'person.first_name' => 'John', # flatten array should just pick the last one
+    'person.last_name' => 'Napiorkowski',
+  ];
+
+  ok my $res = request POST '/account/one', $body_parameters;
+  ok my $data =  $res->content;  
+  is $res->code, 500;
 }
 
 done_testing;
