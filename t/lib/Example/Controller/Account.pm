@@ -13,5 +13,11 @@ sub root :Chained(/) PathPart('account') CaptureArgs(0) { }
     $c->res->body(Dumper $request->nested_params);
   }
 
+  sub json :Chained(root) PathPart('json') Args(0) Does(RequestModel) RequestModel(API::AccountRequest) {
+    my ($self, $c, $request) = @_;
+    $c->res->body(Dumper $request->nested_params);
+  }
+
+
 __PACKAGE__->meta->make_immutable;
 

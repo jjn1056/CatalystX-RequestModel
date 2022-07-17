@@ -174,6 +174,21 @@ use Catalyst::Test 'Example';
   is $res->code, 500;
 }
 
+
+{
+  ok my $body_parameters = [
+    username => 'jjn',
+    password => 'abc123',
+  ];
+
+  ok my $res = request POST '/login', $body_parameters;
+  ok my $data = eval $res->content;  
+  is_deeply $data, +{
+    password => "abc123",
+    username => "jjn",
+  };
+}
+
 done_testing;
 
 __END__
