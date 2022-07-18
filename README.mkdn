@@ -1,138 +1,8 @@
-package CatalystX::RequestModel;
-
-our $VERSION = '0.001';
-
-use Class::Method::Modifiers;
-use Scalar::Util;
-use Moo::_Utils;
-use Module::Pluggable::Object;
-use Module::Runtime ();
-use CatalystX::RequestModel::Utils::InvalidContentType;
-
-require Moo::Role;
-require Sub::Util;
-
-our @DEFAULT_ROLES = (qw(CatalystX::RequestModel::DoesRequestModel));
-our @DEFAULT_EXPORTS = (qw(property properties namespace content_type));
-our %Meta_Data = ();
-our %ContentBodyParsers = ();
-
-sub default_roles { return @DEFAULT_ROLES }
-sub default_exports { return @DEFAULT_EXPORTS }
-sub request_model_metadata { return %Meta_Data }
-sub request_model_metadata_for { return $Meta_Data{shift} }
-sub content_body_parsers { return %ContentBodyParsers }
-
-sub content_body_parser_for {
-  my $ct = shift;
-  return $ContentBodyParsers{$ct} || CatalystX::RequestModel::Utils::InvalidContentType->throw(ct=>$ct);
-}
-
-sub load_content_body_parsers {
-  my $class = shift;
-  my @packages = Module::Pluggable::Object->new(
-      search_path => "${class}::ContentBodyParser"
-    )->plugins;
-
-  %ContentBodyParsers = map {
-    $_->content_type => $_;
-  } map {
-    Module::Runtime::use_module $_;
-  } @packages;
-}
-
-sub import {
-  my $class = shift;
-  my $target = caller;
-
-  $class->load_content_body_parsers;
-
-  unless (Moo::Role->is_role($target)) {
-    my $orig = $target->can('with');
-    Moo::_Utils::_install_tracked($target, 'with', sub {
-      unless ($target->can('request_metadata')) {
-        $Meta_Data{$target}{'request'} = \my @data;
-        my $method = Sub::Util::set_subname "${target}::request_metadata" => sub { @data };
-        no strict 'refs';
-        *{"${target}::request_metadata"} = $method;
-      }
-      &$orig;
-    });
-  } 
-
-  foreach my $default_role ($class->default_roles) {
-    next if Role::Tiny::does_role($target, $default_role);
-    Moo::Role->apply_roles_to_package($target, $default_role);
-    foreach my $export ($class->default_exports) {
-      Moo::_Utils::_install_tracked($target, "__${export}_for_exporter", \&{"${target}::${export}"});
-    }
-  }
-
-  my %cb = map {
-    $_ => $target->can("__${_}_for_exporter");
-  } $class->default_exports;
-
-  foreach my $exported_method (keys %cb) {
-    my $sub = sub {
-      if(Scalar::Util::blessed($_[0])) {
-        return $cb{$exported_method}->(@_);
-      } else {
-        return $cb{$exported_method}->($target, @_);
-      }
-    };
-    Moo::_Utils::_install_tracked($target, $exported_method, $sub);
-  }
-
-  Class::Method::Modifiers::install_modifier $target, 'around', 'has', sub {
-    my $orig = shift;
-    my ($attr, %opts) = @_;
-
-    my $predicate;
-    unless($opts{required}) {
-      $predicate = $opts{predicate} = "has_${attr}" unless exists($opts{predicate});
-    }
-
-    if(my $info = delete $opts{property}) {
-      $info = +{ name=>$attr } unless (ref($info)||'') eq 'HASH';
-      $info->{attr_predicate} = $predicate if defined($predicate);
-      $info->{omit_empty} = 1 unless exists($info->{omit_empty});
-      my $method = \&{"${target}::property"};
-      $method->($attr, $info, \%opts);
-    }
-
-    return $orig->($attr, %opts);
-  } if $target->can('has');
-} 
-
-sub _add_metadata {
-  my ($target, $type, @add) = @_;
-  my $store = $Meta_Data{$target}{$type} ||= do {
-    my @data;
-    if (Moo::Role->is_role($target) or $target->can("${type}_metadata")) {
-      $target->can('around')->("${type}_metadata", sub {
-        my ($orig, $self) = (shift, shift);
-        ($self->$orig(@_), @data);
-      });
-    } else {
-      require Sub::Util;
-      my $method = Sub::Util::set_subname "${target}::${type}_metadata" => sub { @data };
-      no strict 'refs';
-      *{"${target}::${type}_metadata"} = $method;
-    }
-    \@data;
-  };
-
-  push @$store, @add;
-  return;
-}
-
-1;
-
-=head1 NAME
+# NAME
 
 CatalystX::RequestModel - Inflate Models from a Request Content Body
 
-=head1 SYNOPSIS
+# SYNOPSIS
 
 An example Catalyst Request Model:
 
@@ -184,24 +54,24 @@ Now if the incoming POST looks like this:
     | person.password_confirmation        | abc123                               |
     '-------------------------------------+--------------------------------------'
 
-The object instance C<$request_model> would look like:
+The object instance `$request_model` would look like:
 
     say $request_model->username;       # jjn
     say $request_model->first_name;     # John
     say $request_model->last_name;      # Napiorkowski
 
-And C<$request_model> has additional helper public methods to query attributes marked as request
-fields (via the C<property> attribute field) which you can read about below.
+And `$request_model` has additional helper public methods to query attributes marked as request
+fields (via the `property` attribute field) which you can read about below.
 
-See L<CatalystX::RequestModel::ContentBodyParser::JSON> for an example of using this with JSON
+See [CatalystX::RequestModel::ContentBodyParser::JSON](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AJSON) for an example of using this with JSON
 request content.
 
-=head1 DESCRIPTION
+# DESCRIPTION
 
 Dealing with incoming POSTed (or PUTed/ PATCHed, etc) request content bodies is one of the most common
-code issues we have to deal with.  L<Catalyst> has generic capacities for handling common incoming
+code issues we have to deal with.  [Catalyst](https://metacpan.org/pod/Catalyst) has generic capacities for handling common incoming
 content types such as form URL encoded (common with HTML forms) and JSON as well as the ability to
-add in parsing for other types of contents (see L<Catalyst#DATA-HANDLERS>).   However these parsers
+add in parsing for other types of contents (see [Catalyst#DATA-HANDLERS](https://metacpan.org/pod/Catalyst%23DATA-HANDLERS)).   However these parsers
 only checked that a given body content is well formed and not that its valid for your given problem
 domain.  Additionally I find that we spend a lot of code lines in controllers that are doing nothing
 but munging and trying to wack incoming parameters into a form that can be actually used.
@@ -226,19 +96,19 @@ The main downside here is the time you need to inflate the additional classes as
 efforts needed to help new programmers understand this approach.
 
 If you hate this idea but still like the thought of having more structure in mapping your incoming
-random parameters you might want to check out L<Catalyst::TraitFor::Request::StructuredParameters>.
+random parameters you might want to check out [Catalyst::TraitFor::Request::StructuredParameters](https://metacpan.org/pod/Catalyst%3A%3ATraitFor%3A%3ARequest%3A%3AStructuredParameters).
 
-B<NOTE> This is work in progress / late beta code.   What I mean by that is that I will try to maintain
+**NOTE** This is work in progress / late beta code.   What I mean by that is that I will try to maintain
 the public API of this code (as described in the documentation) and only change it if absolutely 
 needed to move the code forward.  However the non public code is subject to change at any time.
 So if you are subclassing this and overriding non public methods you need to check carefully at each
 new release, but if you are just using the code as described you just need to review the changelog
 for any deprecation / breaking changes notices.
 
-=head2 Declaring a model to accept request content bodies
+## Declaring a model to accept request content bodies
 
-To create a L<Catalyst> model that is ready to accept incoming content body data mapped to its attributes
-you just need to use L<CatalystX::RequestModel>:
+To create a [Catalyst](https://metacpan.org/pod/Catalyst) model that is ready to accept incoming content body data mapped to its attributes
+you just need to use [CatalystX::RequestModel](https://metacpan.org/pod/CatalystX%3A%3ARequestModel):
 
     package Example::Model::RegistrationRequest;
 
@@ -256,24 +126,24 @@ you just need to use L<CatalystX::RequestModel>:
 
     __PACKAGE__->meta->make_immutable();
 
-When you include "use CatalystX::RequestModel" we apply the role L<CatalystX::RequestModel::DoesRequestModel>
+When you include "use CatalystX::RequestModel" we apply the role [CatalystX::RequestModel::DoesRequestModel](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3ADoesRequestModel)
 to you model, which gives you some useful methods as well as the ability to store the meta data needed
 to properly mapped parsed content bodies to your model.  You also get two imported subroutines and a
 new field on your attribute declarations:
 
-C<namespace>: This is an optional imported subroutine which allows you to declare the namespace under which
+`namespace`: This is an optional imported subroutine which allows you to declare the namespace under which
 we expect to find the attribute mappings.  This can be useful if your fields are not top level in your
 request content body (as in the example given above).  This is optional and if you leave it off we just
 assume all fields are in the top level of the parsed data hash that you content parser builds based on whatever
 is in the content body.
 
-C<content_type>: This is the request content type which this model is designed to handle.  For now you can
+`content_type`: This is the request content type which this model is designed to handle.  For now you can
 only declare one content type per model (if your endpoint can handle more than one content type you'll need
 for now to define a request model for each one; I'm open to changing this to allow one than one content type
 per request model, but I need to see your use cases for this before I paint myself into a corner codewise).
 
-C<property>: This is a new field allowed on your attribute declarations.  Setting its value to C<1> (as in 
-the example above) just means to use all the default settings for the declared content_type but you can declare
+`property`: This is a new field allowed on your attribute declarations.  Setting its value to `1` (as in 
+the example above) just means to use all the default settings for the declared content\_type but you can declare
 this as a hashref instead if you have special handling needs.  For example:
 
     has notes => (is=>'ro', property=>+{ expand=>'JSON' });
@@ -281,61 +151,57 @@ this as a hashref instead if you have special handling needs.  For example:
 Here's the current list of property settings and what they do.  You can also request the test cases for more
 examples:
 
-=over 4
+- name
 
-=item name
+    The name of the field in the request body we are mapping to the request model.  The default is to just use
+    the name of the attribute.
 
-The name of the field in the request body we are mapping to the request model.  The default is to just use
-the name of the attribute.
+- omit\_empty
 
-=item omit_empty
+    Defaults to true. If there's no matching field in the request body we leave the request model attribute
+    empty (we don't stick an undef in there).  If for some reason you don't want that, setting this to false
+    will put an undef into a scalar fields, and an empty array into an indexed one.   If has no effect on
+    attributes that map to a submodel since I have no idea what that should be (your use cases welcomed).
 
-Defaults to true. If there's no matching field in the request body we leave the request model attribute
-empty (we don't stick an undef in there).  If for some reason you don't want that, setting this to false
-will put an undef into a scalar fields, and an empty array into an indexed one.   If has no effect on
-attributes that map to a submodel since I have no idea what that should be (your use cases welcomed).
+- flatten
 
-=item flatten
+    If the value associated with a field is an array, flatten it to a single value.  The default is based on
+    the body content parser.   Its really a hack to deal with HTML form POST and Query parameters since the
+    way those formats work you can't be sure if a value is flat or an array. This isn't a problem with
+    JSON encoded request bodies.  You'll need to check the docs for the Content Body Parser you are using to
+    see what this does.   
 
-If the value associated with a field is an array, flatten it to a single value.  The default is based on
-the body content parser.   Its really a hack to deal with HTML form POST and Query parameters since the
-way those formats work you can't be sure if a value is flat or an array. This isn't a problem with
-JSON encoded request bodies.  You'll need to check the docs for the Content Body Parser you are using to
-see what this does.   
+- always\_array
 
-=item always_array
+    Similar to `flatten` but opposite, it forces a value into an array even if there's just one value.  Again
+    mostly useful to deal with ideosyncracies of HTML form post.
 
-Similar to C<flatten> but opposite, it forces a value into an array even if there's just one value.  Again
-mostly useful to deal with ideosyncracies of HTML form post.
+    **NOTE**: The attribute property settings `flatten` and `always_array` are currently exclusive (only one of
+    the two will apply if you supply both.  The `always_array` property always takes precedence.  At some point
+    in the future supplying both might generate an exception so its best not to do that.  I'm only leaving it
+    allowed for now since I'm not sure there's a use case for both.
 
-B<NOTE>: The attribute property settings C<flatten> and C<always_array> are currently exclusive (only one of
-the two will apply if you supply both.  The C<always_array> property always takes precedence.  At some point
-in the future supplying both might generate an exception so its best not to do that.  I'm only leaving it
-allowed for now since I'm not sure there's a use case for both.
+- boolean
 
-=item boolean
+    Defaults to false. If true will convert value to the common Perl convention 0 is false, 1 is true.  The way
+    this is converted is partly dependent on your content body parser.
 
-Defaults to false. If true will convert value to the common Perl convention 0 is false, 1 is true.  The way
-this is converted is partly dependent on your content body parser.
+- expand
 
-=item expand
+    Example the value into a data structure by parsing it.   Right now there's only one value this will take,
+    which is `JSON` and will then parse the value into a structure using a JSON parser.   Again this is mostly
+    useful for HTML form posting and coping with some limitations you have in classic HTML form input types.
 
-Example the value into a data structure by parsing it.   Right now there's only one value this will take,
-which is C<JSON> and will then parse the value into a structure using a JSON parser.   Again this is mostly
-useful for HTML form posting and coping with some limitations you have in classic HTML form input types.
-
-=back
-
-=head2 Setting a required attribute
+## Setting a required attribute
 
 Generally it's best to not mark attributes which map to request properties as required and to handled anything
 like thia via your validation layer so that you can provide more useful feedback to your application users.
 If you do need to mark something required in order for your request model to be valid, please note that we
-capture the exception created by Moo/se and throw L<CatalystX::RequestModel::Utils::BadRequest>.  If you are
-using L<CatalystX::Errors> this will get rendered as a HTTP 400 Bad Request; otherwise you just get the 
-generic L<Catalyst> HTTP 500 Server Error or as you might have written in your custom error handling code.
+capture the exception created by Moo/se and throw [CatalystX::RequestModel::Utils::BadRequest](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AUtils%3A%3ABadRequest).  If you are
+using [CatalystX::Errors](https://metacpan.org/pod/CatalystX%3A%3AErrors) this will get rendered as a HTTP 400 Bad Request; otherwise you just get the 
+generic [Catalyst](https://metacpan.org/pod/Catalyst) HTTP 500 Server Error or as you might have written in your custom error handling code.
 
-=head2 Nested and Indexed attributes
+## Nested and Indexed attributes
 
 Very often you will have incoming request data that is complex (or is trying to be, as in the case with
 HTML form post where you use a serialization format to flatten a deep structure into a flat list)  In that
@@ -405,7 +271,7 @@ It would parse and inflate a request model like
 ...and so on.
 
 If your nested models are directly under the main request model's namespace (as in the
-above example) you can shorten the value of the C<model> option to include only the
+above example) you can shorten the value of the `model` option to include only the
 affix.   For example the following:
 
     has profile => (is=>'ro', property=>+{ model=>'AccountRequest::Profile' });
@@ -415,7 +281,7 @@ Could be shortened to:
     has profile => (is=>'ro', property=>+{ model=>'::Profile' });
 
 In the case when your deep structure also is an array/list you can mark that so via the
-C<indexed> option of the property field as in the following example:
+`indexed` option of the property field as in the following example:
 
     package Example::Model::AccountRequest;
 
@@ -473,21 +339,21 @@ It would parse and inflate a request model like
     $request_model->credit_cards->[1]->card_number; # 4444445555556666
     $request_model->credit_cards->[1]->expiration;  # 4000-01-01
 
-Please note the difference between a request property that is marked as C<indexed> versus
-C<always_array>.  An C<indexed> property is required to have an array value while C<always_array>
+Please note the difference between a request property that is marked as `indexed` versus
+`always_array`.  An `indexed` property is required to have an array value while `always_array`
 merely coerces a scalar to an array if the value isn't already an array.  You cannot use
-C<indexed> and C<always_array> in the same request property.
+`indexed` and `always_array` in the same request property.
 
-Please see L<CatalystX::RequestModel::ContentBodyParser::JSON> for an example JSON request body
+Please see [CatalystX::RequestModel::ContentBodyParser::JSON](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AJSON) for an example JSON request body
 with nesting.  JSON is actually easier since we don't need a parsing convention to turn the
 flat list you get with HTML Form post into a deep structure, nor deal with some of form posting's
 idiocracies.
 
-=head2 Endpoints with more than one request model
+## Endpoints with more than one request model
 
 If an endpoint can handle more than one type of incoming content type you can define that
 via the subroutine attribute and the code will pick the right one or throw an exception if none match
-(See L</EXCEPTIONS> for more).
+(See ["EXCEPTIONS"](#exceptions) for more).
 
     sub update :POST Chained('root') PathPart('') Args(0) 
       Does(RequestModel) 
@@ -498,55 +364,52 @@ via the subroutine attribute and the code will pick the right one or throw an ex
       ## Do something with the $request_model
     }
 
-Also see L<Catalyst::ActionRole::RequestModel>.
+Also see [Catalyst::ActionRole::RequestModel](https://metacpan.org/pod/Catalyst%3A%3AActionRole%3A%3ARequestModel).
 
-=head1 CONTENT BODY PARSERS
+# CONTENT BODY PARSERS
 
 This distribution comes bundled with the following content body parsers for handling common needs.  If
-you need to create you own you should subclass L<CatalystX::RequestModel::ContentBodyParser> and place
-the class in the C<CatalystX::RequestModel::ContentBodyParser> namespace.
+you need to create you own you should subclass [CatalystX::RequestModel::ContentBodyParser](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser) and place
+the class in the `CatalystX::RequestModel::ContentBodyParser` namespace.
 
-=head2 Form URL Encoded
+## Form URL Encoded
 
-When a model declares its content_type to be 'application/x-www-form-urlencoded' we use
-L<CatalystX::RequestModel::ContentBodyParser::FormURLEncoded> to parse it.  Please see the documention
+When a model declares its content\_type to be 'application/x-www-form-urlencoded' we use
+[CatalystX::RequestModel::ContentBodyParser::FormURLEncoded](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AFormURLEncoded) to parse it.  Please see the documention
 for more regarding how we parse the flat list of posted body content into a deep structure.
 
-=head2 JSON
+## JSON
 
-When a model declares its content_type to be 'application/json' we use
-L<CatalystX::RequestModel::ContentBodyParser::JSON> to parse it.
+When a model declares its content\_type to be 'application/json' we use
+[CatalystX::RequestModel::ContentBodyParser::JSON](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AJSON) to parse it.
 
-=head1 METHODS
+# METHODS
 
-Please see L<CatalystX::RequestModel::DoesRequestModel> for the public API details.
+Please see [CatalystX::RequestModel::DoesRequestModel](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3ADoesRequestModel) for the public API details.
 
-=head1 EXCEPTIONS
+# EXCEPTIONS
 
 This class can throw the following exceptions:
 
-=head2 Bad Request
+## Bad Request
 
 If your request generates an exception when trying to instantiate your model (basically when calling ->new
-on it) we capture that error, log the error and throw a L<CatalystX::RequestModel::Utils::BadRequest>
+on it) we capture that error, log the error and throw a [CatalystX::RequestModel::Utils::BadRequest](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AUtils%3A%3ABadRequest)
 
-=head2 Invalid Request Content Type
+## Invalid Request Content Type
 
 If the incoming content body doesn't have a content type header that matches one of the available
-content body parsers then we throw an L<CatalystX::RequestModel::Utils::InvalidContentType>.  This
-will get interpretated as an HTTP 415 status client error if you are using L<CatalystX::Errors>.
+content body parsers then we throw an [CatalystX::RequestModel::Utils::InvalidContentType](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AUtils%3A%3AInvalidContentType).  This
+will get interpretated as an HTTP 415 status client error if you are using [CatalystX::Errors](https://metacpan.org/pod/CatalystX%3A%3AErrors).
 
-=head1 AUTHOR
+# AUTHOR
 
     John Napiorkowski <jjnapiork@cpan.org>
 
-=head1 COPYRIGHT
- 
+# COPYRIGHT
+
     2022
 
-=head1 LICENSE
+# LICENSE
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
- 
-=cut
-

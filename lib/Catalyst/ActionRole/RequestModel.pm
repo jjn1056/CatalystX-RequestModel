@@ -1,17 +1,12 @@
 package Catalyst::ActionRole::RequestModel;
 
+our $VERSION = '0.001';
+
 use Moose::Role;
 use Catalyst::Utils;
 use CatalystX::RequestModel::Utils::InvalidContentType;
 
 requires 'attributes', 'execute';
-
-our $VERSION = '0.001';
-
-## TODO compare the incoming requst to the allowed list 
-#around 'dispatch', sub {
-
-#};
 
 around 'execute', sub {
   my ($orig, $self, $controller, $ctx, @args) = @_;

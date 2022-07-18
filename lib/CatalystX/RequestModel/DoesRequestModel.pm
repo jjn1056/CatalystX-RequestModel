@@ -60,6 +60,7 @@ sub COMPONENT {
   return bless $args, $class;
 }
 
+## TODO handle if we are wrapping a model that already does ACCEPT_CONTEXT
 sub ACCEPT_CONTEXT {
   my $self = shift;
   my $c = shift;
@@ -87,14 +88,21 @@ sub parse_content_body {
   my ($self, $c, %args) = @_;
 
   my @rules = $self->properties;
-  my @ns = exists($args{current_namespace}) ? @{$args{current_namespace}} : ($self->namespace || ());            
-  my $parser_class = $self->get_content_body_parser_class($c->req->content_type);
+  my @ns = $self->get_namespace(%args);            
+  my $parser_class = $self->get_content_body_parser_class($c->req->content_type);  
   my $parser = exists($args{current_parser}) ? 
     $args{current_parser} :
-      $parser_class->new(ctx=>$c, request_model=>$self);
+      $parser_class->new(ctx=>$c, request_model=>$self );
 
+  $parser->{context} = $args{context} if exists $args{context}; ## TODO ulgy
 
   return my %request_args = $parser->parse(\@ns, \@rules);
+}
+
+sub get_namespace {
+  my ($self, %args) = @_;
+  return @{$args{current_namespace}} if exists($args{current_namespace});
+  return grep { defined $_ } $self->namespace;
 }
 
 sub get_content_body_parser_class {
@@ -180,6 +188,12 @@ See L<CatalystX::RequestModel> for a more general overview.
 A role that gives a L<Catalyst::Model> the ability to indicate which of its attributes should be
 consider request model data, as well as additional need meta data so that we can process it
 properly.
+
+Since we need to wrap C<has> you should never apply this role manually but rather instead use
+L<CatalystX::RequestModel> to apply it for you.   If you need to customize this role you will
+also need to subclass L<CatalystX::RequestModel> and have that new subclass apply you custom
+role.   Please ping me if you really need this since I guess we could change L<CatalystX::RequestModel>
+to make it easier to supply a custom role, just let me know your use case.
 
 =head1 METHODS
 

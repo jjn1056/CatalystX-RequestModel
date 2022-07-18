@@ -62,6 +62,7 @@ sub handle_form_encoded {
         $current->{$attr} = [];
       }
     } elsif(my $nested_model = $attr_rules->{model}) {
+        # TODO do we need a value exists for the param name...?
         $current->{$attr} = $self->{ctx}->model(
         $self->normalize_nested_model_name($nested_model), 
         current_namespace=>[@$ns, (defined($index) ? "${param_name}[$index]": $param_name)], 
@@ -206,8 +207,10 @@ Could convert to:
       },
     ]
 
-Please note the the index value is just used for ordering purposed.  Also if you just need to add a new item
-to the end of the indexed list you can use and empty index '[]' as in the example above.
+Please note the the index value is just used for ordering purposed, the actual value is tossed after its
+used to do the sorting.  Also if you just need to add a new item to the end of the indexed list you can use an
+empty index '[]' as in the example above.  You might find this useful if you are building HTML forms and need
+to tack on an extra value but don't know the last index.
 
 =head1 HTML FORM POST ISSUES
 
@@ -218,7 +221,7 @@ flatten option to choose the correct value.
 
 You may also have this issue with indexed parameters if the indexed parameters are associated with a checkbox
 or other control that sends no default value.  In that case you can do the same thing, either set a default
-empty arrayref as the value for the attribute or send a ignored indexed parameter (as in the above example).
+empty arrayref as the value for the attribute or send a ignored indexed parameter (as in the above example '_nop').
 
 =head1 EXCEPTIONS
 
