@@ -366,6 +366,124 @@ via the subroutine attribute and the code will pick the right one or throw an ex
 
 Also see [Catalyst::ActionRole::RequestModel](https://metacpan.org/pod/Catalyst%3A%3AActionRole%3A%3ARequestModel).
 
+# QUERY PARAMETERS
+
+You can use this to map URL query parameters to a model using the same approach as HTML Forms.
+
+    package Example::Model::InfoQuery;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+
+    content_in 'query';  # <<=== You need to use this so that the parser knows were to look
+
+    has page => (is=>'ro', required=>1, property=>1);  
+    has offset => (is=>'ro', property=>1);
+    has search => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+Then if you GET to the action using this query model with the following parameters
+
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | offset                              | 100                                  |
+    | page                                | 10                                   |
+    | search                              | nope                                 |
+    '-------------------------------------+--------------------------------------'
+
+You can get a model like this:
+
+    sub info :GET Chained(/) Args(0) Does(RequestModel) RequestModel(InfoQuery)  {
+      my ($self, $c, $query_model) = @_;
+    }
+
+Where `$query_model` looks like:
+
+    print $query_model->offset;   # 100
+    print $query_model->page;     # 10
+    print $query_model->search;   # "nope"
+
+**NOTE** Although GET queries usually don't have a content type, its recommended that your GET query
+parameters be `application/x-www-form-urlencoded` encoded so for now I'm just hijacking that.  If
+this bothers you feel free to submit use cases and patches.
+
+## Requests with mixed query and body models
+
+You might have a request that has both query parameters (via the URL) as well as a content body request.
+In that case you make the content body request in the same way as you normally do and then add a second
+request model that specifies the query parameters.  For example you might have a form post with mixed
+query and body parameters.  You create your models as normal:
+
+    package Example::Model::InfoQuery;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+    content_in 'query';
+
+    has page => (is=>'ro', required=>1, property=>1);  
+    has offset => (is=>'ro', property=>1);
+    has search => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+    package Example::Model::LoginRequest;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+
+    has username => (is=>'ro', required=>1, property=>1);  
+    has password => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+And in your action you list the request models:
+
+    sub postinfo :Chained(/) Args(0) Does(RequestModel) RequestModel(LoginRequest) RequestModel(InfoQuery)  {
+      my ($self, $c, $login_request, $info_query) = @_;
+    }
+
+Now if you get a request like this:
+
+    [debug] "POST" request for "postinfo" from "127.0.0.1"
+    [debug] Query Parameters are:
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | offset                              | 100                                  |
+    | page                                | 10                                   |
+    | search                              | nope                                 |
+    '-------------------------------------+--------------------------------------'
+    [debug] Body Parameters are:
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | password                            | abc123                               |
+    | username                            | jjn                                  |
+    '-------------------------------------+--------------------------------------'
+
+You'll get two models like this:
+
+    print $login_request->username;   # "jjn"
+    print $login_request->password;   # "abc123"
+
+    print $info_query->offset;        # 100
+    print $info_query->page;          # 10
+    print $info_query->search;        # "nope"
+
+This also works with other types of POST request content types such as 'application/json' (see
+test cases for examples).
+
 # CONTENT BODY PARSERS
 
 This distribution comes bundled with the following content body parsers for handling common needs.  If
@@ -377,6 +495,13 @@ the class in the `CatalystX::RequestModel::ContentBodyParser` namespace.
 When a model declares its content\_type to be 'application/x-www-form-urlencoded' we use
 [CatalystX::RequestModel::ContentBodyParser::FormURLEncoded](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AFormURLEncoded) to parse it.  Please see the documention
 for more regarding how we parse the flat list of posted body content into a deep structure.
+
+This handles both POST HTML form content as well as query parameters.
+
+## Multi Part Uploads
+
+This handles content types of 'multipart/form-data'.  Uploads are mapped to attributes with a value that
+is an instance of [Catalyst::Request::Upload](https://metacpan.org/pod/Catalyst%3A%3ARequest%3A%3AUpload).
 
 ## JSON
 
