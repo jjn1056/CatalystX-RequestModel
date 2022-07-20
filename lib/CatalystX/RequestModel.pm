@@ -13,7 +13,7 @@ require Moo::Role;
 require Sub::Util;
 
 our @DEFAULT_ROLES = (qw(CatalystX::RequestModel::DoesRequestModel));
-our @DEFAULT_EXPORTS = (qw(property properties namespace content_type));
+our @DEFAULT_EXPORTS = (qw(property properties namespace content_type content_in));
 our %Meta_Data = ();
 our %ContentBodyParsers = ();
 
@@ -512,6 +512,8 @@ You can use this to map URL query parameters to a model using the same approach 
     extends 'Catalyst::Model';
     content_type 'application/x-www-form-urlencoded';
 
+    content_in 'query';  # <<=== You need to use this so that the parser knows were to look
+
     has page => (is=>'ro', required=>1, property=>1);  
     has offset => (is=>'ro', property=>1);
     has search => (is=>'ro', property=>1);
@@ -544,6 +546,78 @@ B<NOTE> Although GET queries usually don't have a content type, its recommended 
 parameters be C<application/x-www-form-urlencoded> encoded so for now I'm just hijacking that.  If
 this bothers you feel free to submit use cases and patches.
 
+=head2 Requests with mixed query and body models
+
+You might have a request that has both query parameters (via the URL) as well as a content body request.
+In that case you make the content body request in the same way as you normally do and then add a second
+request model that specifies the query parameters.  For example you might have a form post with mixed
+query and body parameters.  You create your models as normal:
+
+    package Example::Model::InfoQuery;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+    content_in 'query';
+
+    has page => (is=>'ro', required=>1, property=>1);  
+    has offset => (is=>'ro', property=>1);
+    has search => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+    package Example::Model::LoginRequest;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+
+    has username => (is=>'ro', required=>1, property=>1);  
+    has password => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+And in your action you list the request models:
+
+    sub postinfo :Chained(/) Args(0) Does(RequestModel) RequestModel(LoginRequest) RequestModel(InfoQuery)  {
+      my ($self, $c, $login_request, $info_query) = @_;
+    }
+
+Now if you get a request like this:
+
+    [debug] "POST" request for "postinfo" from "127.0.0.1"
+    [debug] Query Parameters are:
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | offset                              | 100                                  |
+    | page                                | 10                                   |
+    | search                              | nope                                 |
+    '-------------------------------------+--------------------------------------'
+    [debug] Body Parameters are:
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | password                            | abc123                               |
+    | username                            | jjn                                  |
+    '-------------------------------------+--------------------------------------'
+
+You'll get two models like this:
+
+    print $login_request->username;   # "jjn"
+    print $login_request->password;   # "abc123"
+
+    print $info_query->offset;        # 100
+    print $info_query->page;          # 10
+    print $info_query->search;        # "nope"
+
+This also works with other types of POST request content types such as 'application/json' (see
+test cases for examples).
+
 =head1 CONTENT BODY PARSERS
 
 This distribution comes bundled with the following content body parsers for handling common needs.  If
@@ -555,6 +629,8 @@ the class in the C<CatalystX::RequestModel::ContentBodyParser> namespace.
 When a model declares its content_type to be 'application/x-www-form-urlencoded' we use
 L<CatalystX::RequestModel::ContentBodyParser::FormURLEncoded> to parse it.  Please see the documention
 for more regarding how we parse the flat list of posted body content into a deep structure.
+
+This handles both POST HTML form content as well as query parameters.
 
 =head2 JSON
 

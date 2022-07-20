@@ -86,4 +86,35 @@ use Catalyst::Test 'Example';
   };
 }
 
+{
+  ok my $data = qq[
+    {
+      "info":{
+        "username": "jjn",
+        "first_name": "john",
+        "last_name": "napiorkowski"
+      }
+    }
+  ];
+
+  ok my $res = request POST '/account/jsonquery?page=10;offset=100;search=nope',
+    Content_Type => 'application/json',
+    Content => $data;
+
+  ok my $data = eval $res->content;
+  
+  is_deeply $data, +{
+    get => {
+      offset => 100,
+      page => 10,
+      search => "nope",
+    },
+    post => {
+      first_name => "john",
+      last_name => "napiorkowski",
+      username => "jjn",
+    },
+  };
+}
+
 done_testing;

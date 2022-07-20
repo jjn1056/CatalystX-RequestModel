@@ -19,8 +19,26 @@ use Catalyst::Test 'Example';
   };
 }
 
+{
+  ok my $body_parameters = [
+    username => 'jjn',
+    password => 'abc123',
+  ];
+
+  ok my $res = request POST '/postinfo?page=10;offset=100;search=nope',$body_parameters;
+  ok my $data = eval $res->content;
+  
+  is_deeply $data, +{
+    get => {
+      offset => 100,
+      page => 10,
+      search => "nope",
+    },
+    post => {
+      password => "abc123",
+      username => "jjn",
+    },
+  };
+}
+
 done_testing;
-
-__END__
-
-

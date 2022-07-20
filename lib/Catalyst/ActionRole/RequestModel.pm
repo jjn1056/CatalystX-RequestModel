@@ -10,8 +10,8 @@ requires 'attributes', 'execute';
 
 around 'execute', sub {
   my ($orig, $self, $controller, $ctx, @args) = @_;
-  my $req_model = $self->_get_request_model($controller, $ctx);
-  push @args, $req_model if $req_model;
+  my @req_models = $self->_get_request_model($controller, $ctx);
+  push @args, @req_models if @req_models;
 
   return $self->$orig($controller, $ctx, @args);
 };
@@ -27,14 +27,14 @@ sub _get_request_model {
   $request_content_type = "application/x-www-form-urlencoded"
     if (($ctx->req->method eq 'GET') && !$request_content_type);
 
-  my ($model) = grep {
-    lc($_->content_type) eq lc($request_content_type);
+  my (@matching_models) = grep {
+    (lc($_->content_type) eq lc($request_content_type)) || ($_->get_content_in eq 'query')
   } map {
     $self->_build_request_model_instance($controller, $ctx, $_)
   } @models;
 
-  return CatalystX::RequestModel::Utils::InvalidContentType->throw(ct=>$ctx->req->content_type) unless $model;
-  return $model;
+  return CatalystX::RequestModel::Utils::InvalidContentType->throw(ct=>$ctx->req->content_type) unless @matching_models;
+  return @matching_models;
 }
 
 sub _build_request_model_instance {

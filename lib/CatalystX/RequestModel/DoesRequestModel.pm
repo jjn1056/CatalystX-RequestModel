@@ -20,6 +20,24 @@ sub namespace {
   return $class_or_self->namespace_metadata if $class_or_self->can('namespace_metadata');
 }
 
+sub content_in {
+  my ($class_or_self, $ct) = @_;
+  my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
+  CatalystX::RequestModel::_add_metadata($class, 'content_in', $ct) if $ct;
+
+  if($class_or_self->can('content_in_metadata')) {
+    my ($ct) = $class_or_self->content_in_metadata;  # needed because this returns an array but we only want the first one
+    return $ct if $ct;
+  }
+}
+
+sub get_content_in {
+  my $self = shift;
+  my $ct = $self->content_in;
+  return lc($ct) if $ct;
+  return 'body';
+}
+
 sub content_type {
   my ($class_or_self, $ct) = @_;
   my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
@@ -103,6 +121,7 @@ sub get_content_type {
   my ($self, $c) = @_;
   my $ct = $c->req->content_type;
   return 'application/x-www-form-urlencoded' if !$ct && $c->req->method eq 'GET';
+  return 'application/x-www-form-urlencoded' if $self->get_content_in eq 'query';
   return $ct;
 }
 

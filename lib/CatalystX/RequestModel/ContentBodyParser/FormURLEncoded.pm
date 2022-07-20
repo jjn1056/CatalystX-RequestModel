@@ -13,7 +13,7 @@ sub default_attr_rules {
 
 sub expand_cgi {
   my ($self) = shift;
-  my $params = $self->{ctx}->req->method eq 'GET' ?
+  my $params = (($self->{ctx}->req->method eq 'GET') || ($self->{request_model}->get_content_in eq 'query')) ?
     $self->{ctx}->req->query_parameters :
       $self->{ctx}->req->body_parameters;
 

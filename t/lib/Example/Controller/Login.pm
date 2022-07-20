@@ -11,9 +11,17 @@ sub login :POST Chained(/) Args(0) Does(RequestModel) RequestModel(LoginRequest)
   $c->res->body(Dumper $request->nested_params);
 }
 
-sub info :GET Chained(/) Args(0) Does(RequestModel) RequestModel(InfoQuery)  {
+sub info :Chained(/) Args(0) Does(RequestModel) RequestModel(InfoQuery)  {
   my ($self, $c, $request) = @_;
   $c->res->body(Dumper $request->nested_params);
+}
+
+sub postinfo :Chained(/) Args(0) Does(RequestModel) RequestModel(LoginRequest) RequestModel(InfoQuery)  {
+  my ($self, $c, $post, $get) = @_;
+  $c->res->body(Dumper {
+    get => $get->nested_params,
+    post => $post->nested_params,
+  });
 }
 
 __PACKAGE__->meta->make_immutable;
