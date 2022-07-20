@@ -13,7 +13,10 @@ sub default_attr_rules {
 
 sub expand_cgi {
   my ($self) = shift;
-  my $params = $self->{ctx}->req->body_parameters;
+  my $params = $self->{ctx}->req->method eq 'GET' ?
+    $self->{ctx}->req->query_parameters :
+      $self->{ctx}->req->body_parameters;
+
   my $data;
   foreach my $param (keys %$params) {
     my (@segments) = split /\./, $param;

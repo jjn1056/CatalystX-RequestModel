@@ -21,8 +21,14 @@ sub _get_request_model {
   return unless exists $self->attributes->{RequestModel};
 
   my @models = @{$self->attributes->{RequestModel} || []};
+  my $request_content_type = $ctx->req->content_type;
+
+  # Allow GET to hijack form encoded
+  $request_content_type = "application/x-www-form-urlencoded"
+    if (($ctx->req->method eq 'GET') && !$request_content_type);
+
   my ($model) = grep {
-    lc($_->content_type) eq lc($ctx->req->content_type);
+    lc($_->content_type) eq lc($request_content_type);
   } map {
     $self->_build_request_model_instance($controller, $ctx, $_)
   } @models;

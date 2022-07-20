@@ -500,6 +500,50 @@ via the subroutine attribute and the code will pick the right one or throw an ex
 
 Also see L<Catalyst::ActionRole::RequestModel>.
 
+=head1 QUERY PARAMETERS
+
+You can use this to map URL query parameters to a model using the same approach as HTML Forms.
+
+    package Example::Model::InfoQuery;
+
+    use Moose;
+    use CatalystX::RequestModel;
+
+    extends 'Catalyst::Model';
+    content_type 'application/x-www-form-urlencoded';
+
+    has page => (is=>'ro', required=>1, property=>1);  
+    has offset => (is=>'ro', property=>1);
+    has search => (is=>'ro', property=>1);
+
+    __PACKAGE__->meta->make_immutable();
+
+Then if you GET to the action using this query model with the following parameters
+
+    .-------------------------------------+--------------------------------------.
+    | Parameter                           | Value                                |
+    +-------------------------------------+--------------------------------------+
+    | offset                              | 100                                  |
+    | page                                | 10                                   |
+    | search                              | nope                                 |
+    '-------------------------------------+--------------------------------------'
+
+You can get a model like this:
+
+    sub info :GET Chained(/) Args(0) Does(RequestModel) RequestModel(InfoQuery)  {
+      my ($self, $c, $query_model) = @_;
+    }
+
+Where C<$query_model> looks like:
+
+    print $query_model->offset;   # 100
+    print $query_model->page;     # 10
+    print $query_model->search;   # "nope"
+
+B<NOTE> Although GET queries usually don't have a content type, its recommended that your GET query
+parameters be C<application/x-www-form-urlencoded> encoded so for now I'm just hijacking that.  If
+this bothers you feel free to submit use cases and patches.
+
 =head1 CONTENT BODY PARSERS
 
 This distribution comes bundled with the following content body parsers for handling common needs.  If

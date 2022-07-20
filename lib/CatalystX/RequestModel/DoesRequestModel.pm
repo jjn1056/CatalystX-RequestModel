@@ -89,7 +89,7 @@ sub parse_content_body {
 
   my @rules = $self->properties;
   my @ns = $self->get_namespace(%args);            
-  my $parser_class = $self->get_content_body_parser_class($c->req->content_type);  
+  my $parser_class = $self->get_content_body_parser_class($self->get_content_type($c));  
   my $parser = exists($args{current_parser}) ? 
     $args{current_parser} :
       $parser_class->new(ctx=>$c, request_model=>$self );
@@ -97,6 +97,13 @@ sub parse_content_body {
   $parser->{context} = $args{context} if exists $args{context}; ## TODO ulgy
 
   return my %request_args = $parser->parse(\@ns, \@rules);
+}
+
+sub get_content_type {
+  my ($self, $c) = @_;
+  my $ct = $c->req->content_type;
+  return 'application/x-www-form-urlencoded' if !$ct && $c->req->method eq 'GET';
+  return $ct;
 }
 
 sub get_namespace {
