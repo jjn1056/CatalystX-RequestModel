@@ -632,6 +632,11 @@ for more regarding how we parse the flat list of posted body content into a deep
 
 This handles both POST HTML form content as well as query parameters.
 
+=head2 Multi Part Uploads
+
+This handles content types of 'multipart/form-data'.  Uploads are mapped to attributes with a value that
+is an instance of L<Catalyst::Request::Upload>.
+
 =head2 JSON
 
 When a model declares its content_type to be 'application/json' we use
