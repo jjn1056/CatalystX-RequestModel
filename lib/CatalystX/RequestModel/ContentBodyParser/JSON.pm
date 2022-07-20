@@ -6,88 +6,17 @@ use base 'CatalystX::RequestModel::ContentBodyParser';
 
 sub content_type { 'application/json' }
 
+sub default_attr_rules { 
+  my ($self, $attr_rules) = @_;
+  return +{ flatten=>0, %$attr_rules };
+}
+
 sub new {
   my ($class, %args) = @_;
   my $self = bless \%args, $class;
   $self->{context} ||= $self->{ctx}->req->body_data;
 
   return $self;
-}
-
-sub parse {
-  my ($self, $ns, $rules) = @_;
-  my %parsed = %{ $self->handle_data_encoded($self->{context}, $ns, $rules) };
-  return %parsed;
-}
-
-sub handle_data_encoded {
-  my ($self, $context, $ns, $rules, $indexed) = @_;
-  my $response = +{};
-
-  # point $context to the namespace or die if not a valid namespace
-  foreach my $pointer (@$ns) {
-    if(exists($context->{$pointer})) {
-      $context = $context->{$pointer};
-    } else {
-      die "invalid request does not contain the namespace @$ns";  ## TODO real exception errror
-    }
-  }
-
-  while(@$rules) {
-    my $current_rule = shift @{$rules};
-    my ($attr, $attr_rules) = %$current_rule;
-    my $data_name = $attr_rules->{name};
-    $attr_rules = +{ flatten=>0, %$attr_rules }; ## Set defaults
-
-    next unless exists $context->{$data_name}; # required handled by Moo/se required attribute
-
-    if( !$indexed && $attr_rules->{indexed}) {
-
-      die "Value of indexed request field is not an array"
-        unless ((ref($context->{$data_name})||'') eq 'ARRAY'); ## TODO real exception errror
-
-      my @response_data;
-      foreach my $indexed_value(@{$context->{$data_name}}) {
-        my $indexed_response = $self->handle_data_encoded(+{ $data_name => $indexed_value}, [], [$current_rule], 1);
-        push @response_data, $indexed_response->{$data_name};
-      }
-
-      if(@response_data) {
-        $response->{$data_name} = \@response_data;
-      } elsif(!$attr_rules->{omit_empty}) {
-        $response->{$data_name} = [];
-      }
-
-    } elsif(my $nested_model = $attr_rules->{model}) { 
-        $response->{$attr} = $self->{ctx}->model(
-          $self->normalize_nested_model_name($nested_model), 
-          current_parser=>$self,
-          context=>$context->{$data_name},
-        );
-    } else {
-      my $value = $context->{$data_name};
-      $response->{$data_name} = $self->normalize_value($data_name, $value, $attr_rules);
-    }
-  }
-
-  return $response;
-}
-
-sub normalize_always_array {
-  my ($self, $value) = @_;
-  $value = [$value] unless (ref($value)||'') eq 'ARRAY';
-  return $value;
-}
-
-sub normalize_flatten{
-  my ($self, $value) = @_;
-    $value = $value->[-1] if (ref($value)||'') eq 'ARRAY';
-  return $value;
-}
-
-sub normalize_boolean {
-  my ($self, $value) = @_;
-  return $value ? 1:0
 }
 
 1;

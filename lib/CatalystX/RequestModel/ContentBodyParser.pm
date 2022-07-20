@@ -4,16 +4,87 @@ use warnings;
 use strict;
 use Module::Runtime ();
 use CatalystX::RequestModel::Utils::InvalidJSONForValue;
+use CatalystX::RequestModel::Utils::InvalidJSONNamespace;
 use Catalyst::Utils;
-
-my $_JSON_PARSER;
-my $_build_json_parser = sub {
-  return $_JSON_PARSER ||= Module::Runtime::use_module('JSON::MaybeXS')->new(utf8 => 1);
-};
 
 sub content_type { die "Must be overridden" }
 
-sub parse { die "Must be overridden"}
+sub default_attr_rules { die "Must be overridden" }
+
+sub parse {
+  my ($self, $ns, $rules) = @_;
+  my %parsed = %{ $self->handle_data_encoded($self->{context}, $ns, $rules) };
+  return %parsed;
+}
+
+sub _sorted {
+  return 1 if $a eq '';
+  return -1 if $b eq '';
+  return $a <=> $b;
+}
+
+sub handle_data_encoded {
+  my ($self, $context, $ns, $rules, $indexed) = @_;
+  my $response = +{};
+
+  # point $context to the namespace or die if not a valid namespace
+  foreach my $pointer (@$ns) {
+    if(exists($context->{$pointer})) {
+      $context = $context->{$pointer};
+    } else {
+      CatalystX::RequestModel::Utils::InvalidJSONNamespace->throw(ns=>join '.', @$ns);
+    }
+  }
+
+  while(@$rules) {
+    my $current_rule = shift @{$rules};
+    my ($attr, $attr_rules) = %$current_rule;
+    my $data_name = $attr_rules->{name};
+    $attr_rules = $self->default_attr_rules($attr_rules);
+
+    next unless exists $context->{$data_name}; # required handled by Moo/se required attribute
+
+    if( !$indexed && $attr_rules->{indexed}) {
+
+      # TODO move this into stand alone method and set some sort of condition
+      unless((ref($context->{$data_name})||'') eq 'ARRAY') {
+        if((ref($context->{$data_name})||'') eq 'HASH') {
+          my @values = ();
+          foreach my $index (sort _sorted keys %{$context->{$data_name}}) {
+            push @values, $context->{$data_name}{$index};
+          }
+          $context->{$data_name} = \@values;
+        } else {
+          die "Value of indexed request field is not an array" # TODO Real exception
+        }
+      }
+      
+      my @response_data;
+      foreach my $indexed_value(@{$context->{$data_name}}) {
+        my $indexed_response = $self->handle_data_encoded(+{ $data_name => $indexed_value}, [], [$current_rule], 1);
+        push @response_data, $indexed_response->{$data_name};
+      }
+
+      if(@response_data) {
+        $response->{$data_name} = \@response_data;
+      } elsif(!$attr_rules->{omit_empty}) {
+        $response->{$data_name} = [];
+      }
+
+    } elsif(my $nested_model = $attr_rules->{model}) { 
+        $response->{$attr} = $self->{ctx}->model(
+          $self->normalize_nested_model_name($nested_model), 
+          current_parser=>$self,
+          context=>$context->{$data_name},
+        );
+    } else {
+      my $value = $context->{$data_name};
+      $response->{$data_name} = $self->normalize_value($data_name, $value, $attr_rules);
+    }
+  }
+
+  return $response;
+}
 
 sub normalize_value {
   my ($self, $param, $value, $key_rules) = @_;
@@ -59,6 +130,11 @@ sub normalize_nested_model_name {
   return $nested_model;
 }
 
+my $_JSON_PARSER;
+my $_build_json_parser = sub {
+  return $_JSON_PARSER ||= Module::Runtime::use_module('JSON::MaybeXS')->new(utf8 => 1);
+};
+
 sub normalize_json {
   my ($self, $value, $param) = @_;
 
@@ -70,6 +146,7 @@ sub normalize_json {
 
   return $value;
 }
+
 
 1;
 

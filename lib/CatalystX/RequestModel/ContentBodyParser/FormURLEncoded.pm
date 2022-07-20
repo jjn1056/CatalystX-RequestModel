@@ -6,93 +6,41 @@ use base 'CatalystX::RequestModel::ContentBodyParser';
 
 sub content_type { 'application/x-www-form-urlencoded' }
 
+sub default_attr_rules { 
+  my ($self, $attr_rules) = @_;
+  return +{ flatten=>1, %$attr_rules };
+}
+
+sub expand_cgi {
+  my ($self) = shift;
+  my $params = $self->{ctx}->req->body_parameters;
+  my $data;
+  foreach my $param (keys %$params) {
+    my (@segments) = split /\./, $param;
+    my $data_ref = \$data;
+    foreach my $segment (@segments) {
+      $$data_ref = {} unless defined $$data_ref;
+
+      my ($prefix,$i) = ($segment =~m/^(.+)?\[(\d*)\]$/);
+      $segment = $prefix if defined $prefix;
+
+      die "CGI param clash for $param=$_" unless ref $$data_ref eq 'HASH';
+      $data_ref = \($$data_ref->{$segment});
+      $data_ref = \($$data_ref->{$i}) if defined $i;
+    }
+    die "CGI param clash for $param value $params->{$param}" if defined $$data_ref;
+    $$data_ref = $params->{$param};
+  }
+
+  return $data;
+}
+
 sub new {
   my ($class, %args) = @_;
   my $self = bless \%args, $class;
-  $self->{bp} ||= $self->{ctx}->req->body_parameters;
-
-  ## TODO prepare into hash of hashes to optimize how indexes work
-  #use Devel::Dwarn;
-  #Dwarn $self->{bp} ;
+  $self->{context} ||= $self->expand_cgi;
 
   return $self;
-}
-
-sub parse {
-  my ($self, $ns, $rules) = @_;
-  my %parsed = %{ $self->handle_form_encoded($ns, undef, $rules) };
-  return %parsed;
-}
-
-sub _sorted {
-  return 1 if $a eq '';
-  return -1 if $b eq '';
-  return $a <=> $b;
-}
-
-sub handle_form_encoded {
-  my ($self, $ns, $index, $rules) = @_;
-  my $current = +{};
-  my $body_parameters = $self->{bp};
-
-  while(@$rules) {
-    my $current_rule = shift @{$rules};
-    my ($attr, $attr_rules) = %$current_rule;
-    my $param_name = $attr_rules->{name};
-
-    $attr_rules = +{ flatten=>1, %$attr_rules }; ## Set defaults
-
-    if($attr_rules->{indexed} && !defined($index)) {
-      my $body_parameter_name = join '.', @$ns, $param_name;
-      my %indexes = ();
-      foreach my $body_param (CORE::keys %$body_parameters) {
-        my ($i, $under) = ($body_param =~m/^\Q$body_parameter_name\E\[(\d*)\]\.?(.*)$/);
-        next unless defined $i;
-        push @{$indexes{$i}}, $under;
-      }
-      my @values = ();
-      foreach my $index (sort _sorted CORE::keys %indexes) {
-        my $value = $self->handle_form_encoded($ns, $index, [$current_rule]);
-        push @values, $value->{$attr}; #$self->normalize_value($value, $attr_rules);
-      }
-
-      if(@values) {
-        $current->{$attr} = \@values;
-      } elsif(!$attr_rules->{omit_empty}) {
-        $current->{$attr} = [];
-      }
-    } elsif(my $nested_model = $attr_rules->{model}) {
-        # TODO do we need a value exists for the param name...?
-        $current->{$attr} = $self->{ctx}->model(
-        $self->normalize_nested_model_name($nested_model), 
-        current_namespace=>[@$ns, (defined($index) ? "${param_name}[$index]": $param_name)], 
-        current_parser=>$self
-      );
-    } else {
-      my $body_parameter_name = join '.', @$ns, (defined($index) ? "${param_name}[$index]": $param_name);
-      next unless exists $body_parameters->{$body_parameter_name};   ## TODO needs to be a proper Bad Request Exception class
-      my $value = $body_parameters->{$body_parameter_name};
-      $current->{$attr} = $self->normalize_value($body_parameter_name, $value, $attr_rules);
-    }
-  }
-  return $current;
-}
-
-sub normalize_always_array {
-  my ($self, $value) = @_;
-  $value = [$value] unless (ref($value)||'') eq 'ARRAY';
-  return $value;
-}
-
-sub normalize_flatten{
-  my ($self, $value) = @_;
-    $value = $value->[-1] if (ref($value)||'') eq 'ARRAY';
-  return $value;
-}
-
-sub normalize_boolean {
-  my ($self, $value) = @_;
-  return $value ? 1:0
 }
 
 1;
