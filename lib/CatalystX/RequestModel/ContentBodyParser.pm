@@ -4,7 +4,8 @@ use warnings;
 use strict;
 use Module::Runtime ();
 use CatalystX::RequestModel::Utils::InvalidJSONForValue;
-use CatalystX::RequestModel::Utils::InvalidJSONNamespace;
+use CatalystX::RequestModel::Utils::InvalidRequestNamespace;
+use CatalystX::RequestModel::Utils::InvalidRequestNotIndexed;
 use Catalyst::Utils;
 
 sub content_type { die "Must be overridden" }
@@ -32,7 +33,7 @@ sub handle_data_encoded {
     if(exists($context->{$pointer})) {
       $context = $context->{$pointer};
     } else {
-      CatalystX::RequestModel::Utils::InvalidJSONNamespace->throw(ns=>join '.', @$ns);
+      CatalystX::RequestModel::Utils::InvalidRequestNamespace->throw(ns=>join '.', @$ns);
     }
   }
 
@@ -55,7 +56,7 @@ sub handle_data_encoded {
           }
           $context->{$data_name} = \@values;
         } else {
-          die "Value of indexed request field is not an array" # TODO Real exception
+          CatalystX::RequestModel::Utils::InvalidRequestNotIndexed->throw(param=>$data_name);
         }
       }
       
@@ -131,22 +132,22 @@ sub normalize_nested_model_name {
 }
 
 my $_JSON_PARSER;
-my $_build_json_parser = sub {
+sub get_json_parser {
+  my $self = shift;
   return $_JSON_PARSER ||= Module::Runtime::use_module('JSON::MaybeXS')->new(utf8 => 1);
-};
+}
 
 sub normalize_json {
   my ($self, $value, $param) = @_;
 
   eval {
-    $value = $self->$_build_json_parser->decode($value);
+    $value = $self->get_json_parser->decode($value);
   } || do {
     CatalystX::RequestModel::Utils::InvalidJSONForValue->throw(param=>$param, parsing_error=>$@);
   };
 
   return $value;
 }
-
 
 1;
 
@@ -179,6 +180,16 @@ If you mark an attribute as "expand=>'JSON'" and the value isn't valid JSON then
 an L<CatalystX::RequestModel::Utils::InvalidJSONForValue> exception which if you are using
 L<CatalystX::Errors> will be converted into a HTTP 400 Bad Request response (and also logging
 to the error log the JSON parsing error).
+
+=head2 Invalid request parameter not indexed
+
+If a request parameter is marked as indexed but no indexed values (not arrayref) are found
+we throw L<CatalystX::RequestModel::Utils::InvalidRequestNamespace>
+
+=head2 Invalid request no namespace
+
+If your request model defines a namespace but there's no matching namespace in the request
+we throw a L<CatalystX::RequestModel::Utils::InvalidRequestNamespace>.
 
 =head1 METHODS
 

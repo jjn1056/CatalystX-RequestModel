@@ -1,4 +1,4 @@
-package CatalystX::RequestModel::Utils::InvalidJSONNamespace;
+package CatalystX::RequestModel::Utils::InvalidRequestNamespace;
  
 use Moose;
 with 'CatalystX::Utils::DoesHttpException';

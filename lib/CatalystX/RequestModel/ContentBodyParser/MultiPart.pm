@@ -97,6 +97,10 @@ This is basically a subclass of L<CatalystX::RequestModel::ContentBodyParser::Fo
 with added support for multipart form uploads.  You should see the parent file for more
 details.
 
+=head1 EXCEPTIONS
+
+See L<CatalystX::RequestModel::ContentBodyParser> for exceptions.
+
 =head1 AUTHOR
 
 See L<CatalystX::RequestModel>.

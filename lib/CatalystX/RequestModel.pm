@@ -130,7 +130,7 @@ sub _add_metadata {
 
 =head1 NAME
 
-CatalystX::RequestModel - Inflate Models from a Request Content Body
+CatalystX::RequestModel - Inflate Models from a Request Content Body or from URL Query Parameters
 
 =head1 SYNOPSIS
 
@@ -478,6 +478,9 @@ C<always_array>.  An C<indexed> property is required to have an array value whil
 merely coerces a scalar to an array if the value isn't already an array.  You cannot use
 C<indexed> and C<always_array> in the same request property.
 
+B<NOTE> You can use the C<indexed> attribute property with simple scalar values as well as
+deep structured objects.  See test cases for more.
+
 Please see L<CatalystX::RequestModel::ContentBodyParser::JSON> for an example JSON request body
 with nesting.  JSON is actually easier since we don't need a parsing convention to turn the
 flat list you get with HTML Form post into a deep structure, nor deal with some of form posting's
@@ -512,7 +515,7 @@ You can use this to map URL query parameters to a model using the same approach 
     extends 'Catalyst::Model';
     content_type 'application/x-www-form-urlencoded';
 
-    content_in 'query';  # <<=== You need to use this so that the parser knows were to look
+    content_in 'query';  # <<=== You need to use this!
 
     has page => (is=>'ro', required=>1, property=>1);  
     has offset => (is=>'ro', property=>1);

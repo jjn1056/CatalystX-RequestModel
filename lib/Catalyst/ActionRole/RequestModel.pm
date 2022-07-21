@@ -114,6 +114,8 @@ Example of an action with more than one request model, which will be matched bas
       ## Do something with the $request_model
     }
 
+Also, if more than one model matches, you'll get an instance of each matching model.
+
 =head1 AUTHOR
 
 See L<CatalystX::RequestModel>.

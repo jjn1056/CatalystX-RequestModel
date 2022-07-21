@@ -176,15 +176,7 @@ empty arrayref as the value for the attribute or send a ignored indexed paramete
 
 =head1 EXCEPTIONS
 
-This class can throw the following exceptions:
-
-=head2 Invalid JSON in value
-
-If you mark an attribute as "expand=>'JSON'" and the value isn't valid JSON then we throw
-an L<CatalystX::RequestModel::Utils::InvalidJSONForValue> exception which if you are using
-L<CatalystX::Errors> will be converted into a HTTP 400 Bad Request response (and also logging
-to the error log the JSON parsing error).
-
+See L<CatalystX::RequestModel::ContentBodyParser> for exceptions.
 
 =head1 AUTHOR
 

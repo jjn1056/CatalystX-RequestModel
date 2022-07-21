@@ -126,7 +126,7 @@ And the following POSTed JSON request body:
 Will inflate a request model that provides:
 
     my $request_model = $c->model('API::AccountRequest');
-    Dumper $request_model->nested_model;
+    Dumper $request_model->nested_params;
 
     +{
       'person_roles' => [
@@ -169,8 +169,6 @@ Will inflate a request model that provides:
       'last_name' => 'napiorkowski' 
     };    
 
-__PACKAGE__->meta->make_immutable();
-
 =head1 VALUE PARSER CONFIGURATION
 
 This parser defines the following attribute properties which effect how a value is parsed.
@@ -189,17 +187,7 @@ defaults to FALSE.
 
 =head1 EXCEPTIONS
 
-This class can throw the following exceptions:
-
-=head2 Invalid JSON in value
-
-If you mark an attribute as "expand=>'JSON'" and the value isn't valid JSON then we throw
-an L<CatalystX::RequestModel::Utils::InvalidJSONForValue> exception which if you are using
-L<CatalystX::Errors> will be converted into a HTTP 400 Bad Request response (and also logging
-to the error log the JSON parsing error).
-
-Not sure why you'd need this for JSON request bodies but again no reason for me to disable the option
-I guess.
+See L<CatalystX::RequestModel::ContentBodyParser> for exceptions.
 
 =head1 AUTHOR
 

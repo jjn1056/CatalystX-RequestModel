@@ -245,11 +245,10 @@ when the attribute listed has no value, you will instead get an C<undef>.
 
 This class can throw the following exceptions:
 
-=head2 Invalid Request Content Type
+=head2 Invalid Request Content Body
 
-If the incoming content body doesn't have a content type header that matches one of the available
-content body parsers then we throw an L<CatalystX::RequestModel::Utils::InvalidContentType>.  This
-will get interpretated as an HTTP 415 status client error if you are using L<CatalystX::Errors>.
+If we can't create an instance of the request model we throw a L<CatalystX::RequestModel::Utils::BadRequest>.
+This will get interpretated as an HTTP 400 status client error if you are using L<CatalystX::Errors>.
 
 =head1 AUTHOR
 
