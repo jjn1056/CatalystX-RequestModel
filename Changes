@@ -1,5 +1,8 @@
 # This file documents the revision history for Perl extension CatalystX-RequestModel.
 
+0.002 - 21 July 2022
+  - fixed incorrect dependency version number
+
 0.001 - 20 July 2022
   - First Release
   - In memory of our Akita dog Sunshine, one year passed and greatly missed
