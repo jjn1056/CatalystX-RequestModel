@@ -1,6 +1,6 @@
 # NAME
 
-CatalystX::RequestModel - Inflate Models from a Request Content Body
+CatalystX::RequestModel - Inflate Models from a Request Content Body or from URL Query Parameters
 
 # SYNOPSIS
 
@@ -344,6 +344,9 @@ Please note the difference between a request property that is marked as `indexed
 merely coerces a scalar to an array if the value isn't already an array.  You cannot use
 `indexed` and `always_array` in the same request property.
 
+**NOTE** You can use the `indexed` attribute property with simple scalar values as well as
+deep structured objects.  See test cases for more.
+
 Please see [CatalystX::RequestModel::ContentBodyParser::JSON](https://metacpan.org/pod/CatalystX%3A%3ARequestModel%3A%3AContentBodyParser%3A%3AJSON) for an example JSON request body
 with nesting.  JSON is actually easier since we don't need a parsing convention to turn the
 flat list you get with HTML Form post into a deep structure, nor deal with some of form posting's
@@ -378,7 +381,7 @@ You can use this to map URL query parameters to a model using the same approach 
     extends 'Catalyst::Model';
     content_type 'application/x-www-form-urlencoded';
 
-    content_in 'query';  # <<=== You need to use this so that the parser knows were to look
+    content_in 'query';  # <<=== You need to use this!
 
     has page => (is=>'ro', required=>1, property=>1);  
     has offset => (is=>'ro', property=>1);
