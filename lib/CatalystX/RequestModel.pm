@@ -1,6 +1,6 @@
 package CatalystX::RequestModel;
 
-our $VERSION = '0.004';
+our $VERSION = '0.005';
 
 use Class::Method::Modifiers;
 use Scalar::Util;
@@ -651,7 +651,8 @@ Please see L<CatalystX::RequestModel::DoesRequestModel> for the public API detai
 
 =head1 EXCEPTIONS
 
-This class can throw the following exceptions:
+This class can throw the following exceptions.  Please note all exceptions are compatible with
+L<CatalystX::Errors> to make it easy and consistent to convert errors to actual error responses.
 
 =head2 Bad Request
 

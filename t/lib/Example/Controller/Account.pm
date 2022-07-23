@@ -26,6 +26,16 @@ sub root :Chained(/) PathPart('account') CaptureArgs(0) { }
     });
   }
 
+sub end :Action {
+  my ($self, $c) = @_;
+  if($c->error) {
+    my $e = $c->error->[-1];
+    if(ref $e eq 'CatalystX::RequestModel::Utils::InvalidJSON') {
+      $c->error(0);
+      $c->res->code($e->status_code);
+    }
+  }
+}
 
 __PACKAGE__->meta->make_immutable;
 

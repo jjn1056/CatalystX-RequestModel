@@ -1,5 +1,10 @@
 # This file documents the revision history for Perl extension CatalystX-RequestModel.
 
+0.005 - 23 July 2022
+  - JSON Content Body Parser throws an exception when the JSON in the body is
+    invalid.   This is an exception object that you can catch and handle or
+    use CatalystX::Errors.
+
 0.004 - 22 July 2022
   - Added missing dependency
 

@@ -117,4 +117,19 @@ use Catalyst::Test 'Example';
   };
 }
 
+{
+  ok my $data = qq[
+    {
+      "info":{
+        "username": "jjn",
+      }
+  ];
+
+  ok my $res = request POST '/account/jsonquery?page=10;offset=100;search=nope',
+    Content_Type => 'application/json',
+    Content => $data;
+
+  is $res->code, 400;
+}
+
 done_testing;

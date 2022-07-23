@@ -2,6 +2,8 @@ package CatalystX::RequestModel::ContentBodyParser::JSON;
 
 use warnings;
 use strict;
+use CatalystX::RequestModel::Utils::InvalidJSON;
+
 use base 'CatalystX::RequestModel::ContentBodyParser';
 
 sub content_type { 'application/json' }
@@ -14,9 +16,19 @@ sub default_attr_rules {
 sub new {
   my ($class, %args) = @_;
   my $self = bless \%args, $class;
-  $self->{context} ||= $self->{ctx}->req->body_data;
-
+  $self->{context} ||= $self->_parse_json_body;
   return $self;
+}
+
+sub _parse_json_body {
+  my ($self) = @_;
+  my $json = eval {
+    $self->{ctx}->req->body_data;
+  } || do {
+    CatalystX::RequestModel::Utils::InvalidJSON->throw(parsing_error=>$@);
+  };
+
+  return $json;
 }
 
 1;
@@ -187,7 +199,12 @@ defaults to FALSE.
 
 =head1 EXCEPTIONS
 
-See L<CatalystX::RequestModel::ContentBodyParser> for exceptions.
+See L<CatalystX::RequestModel::ContentBodyParser> for inherited exceptions.
+
+=head2 Invalid JSON Content Body
+
+If the JSON in the request content body is invalid, we throw a L<CatalystX::RequestModel::Utils::InvalidJSON>
+exception.
 
 =head1 AUTHOR
 
