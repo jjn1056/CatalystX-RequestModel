@@ -95,8 +95,8 @@ sub build_request_model {
   my ($self, $c, $class, %init_args) = @_;
   my $request_model = eval {
     $class->new(%init_args)
-  } || do {
-    return CatalystX::RequestModel::Utils::BadRequest->throw(class=>$class, error_trace=>$@);
+  } || do { 
+    CatalystX::RequestModel::Utils::BadRequest->throw(class=>$class, error_trace=>$@);
   };
 
   return $request_model;
