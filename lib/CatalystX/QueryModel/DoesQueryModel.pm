@@ -15,7 +15,7 @@ sub namespace {
   my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
   if(@data) {
     @data = map { split /\./, $_ } @data;
-    CatalystX::RequestModel::_add_metadata($class, 'namespace', @data);
+    CatalystX::QueryModel::_add_metadata($class, 'namespace', @data);
   }
 
   return $class_or_self->namespace_metadata if $class_or_self->can('namespace_metadata');
@@ -29,7 +29,7 @@ sub has_content_type {
 sub content_type {
   my ($class_or_self, $ct) = @_;
   my $class = ref($class_or_self) ? ref($class_or_self) : $class_or_self;
-  CatalystX::RequestModel::_add_metadata($class, 'content_type', $ct) if $ct;
+  CatalystX::QueryModel::_add_metadata($class, 'content_type', $ct) if $ct;
 
   if($class_or_self->can('content_type_metadata')) {
     my ($ct) = $class_or_self->content_type_metadata;  # needed because this returns an array but we only want the first one
@@ -54,7 +54,7 @@ sub properties {
     my $attr = shift(@data);
     my $data = (ref($data[0])||'') eq 'HASH' ? shift(@data) : +{ name => $attr };
     $data->{name} = $attr unless exists($data->{name});
-    CatalystX::RequestModel::_add_metadata($class, 'property_data', +{$attr => $data});
+    CatalystX::QueryModel::_add_metadata($class, 'property_data', +{$attr => $data});
   }
 
   return $class_or_self->property_data_metadata if $class_or_self->can('property_data_metadata');
