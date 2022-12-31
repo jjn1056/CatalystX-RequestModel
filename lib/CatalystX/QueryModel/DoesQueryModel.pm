@@ -43,7 +43,7 @@ sub property {
   if(defined $data_proto) {
     my $data = (ref($data_proto)||'') eq 'HASH' ? $data_proto : +{ name => $attr };
     $data->{name} = $attr unless exists($data->{name});
-    CatalystX::RequestModel::_add_metadata($class, 'property_data', +{$attr => $data});
+    CatalystX::QueryModel::_add_metadata($class, 'property_data', +{$attr => $data});
   }
 }
 
