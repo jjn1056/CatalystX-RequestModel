@@ -5,6 +5,7 @@
     that didn't support it.
   - Fixed test case that failed on some platforms
   - Distribution meta data fixes, including copyright update
+
 0.012 - 30 December 2022
   - Fixed typo in previous release
 
