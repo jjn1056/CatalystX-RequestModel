@@ -174,7 +174,6 @@ use Catalyst::Test 'Example';
   is $res->code, 500;
 }
 
-
 {
   ok my $body_parameters = [
     username => 'jjn',
@@ -190,7 +189,3 @@ use Catalyst::Test 'Example';
 }
 
 done_testing;
-
-__END__
-
-
