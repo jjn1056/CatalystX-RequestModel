@@ -164,13 +164,16 @@ sub _get_request_model {
     if (($ctx->req->method eq 'GET') && !$request_content_type);
 
   my (@matching_models) = grep {
-    (lc($_->content_type) eq lc($request_content_type)) || ($_->get_content_in eq 'query')
+    my $model = $_;
+    my @model_ct = $model->content_type;
+    grep { lc($_) eq lc($request_content_type) || ($model->get_content_in eq 'query') } @model_ct;
   } map {
     $self->_build_request_model_instance($controller, $ctx, $_)
   } @models;
 
   if(exists($self->attributes->{RequestModel}) ||exists($self->attributes->{BodyModelFor}) || exists($self->attributes->{BodyModel})) {
     my ($content_type, @params) = $ctx->req->content_type; # handle "multipart/form-data; boundary=xYzZY"
+    $ctx->log->warn("No matching models for content type '$content_type'") unless @matching_models;
     return CatalystX::RequestModel::Utils::InvalidContentType->throw(ct=>$content_type) unless @matching_models;
   }
 
